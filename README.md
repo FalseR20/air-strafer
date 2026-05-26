@@ -1,6 +1,6 @@
-# Air Strafer
+# CS2 Air Strafer
 
-A frontend-only React app initialized with Bun.
+A frontend-only Bun/React trainer for CS2 air-strafe mouse and A/D sync.
 
 Install dependencies:
 
