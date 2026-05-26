@@ -2,23 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./index.css";
 
 type Direction = "left" | "right" | "neutral";
-type SampleQuality = "sync" | "miss" | "wrong" | "overlap" | "forward" | "neutral";
+type TickQuality = "sync" | "miss" | "wrong" | "overlap" | "neutral";
 
 type KeyState = {
   a: boolean;
   d: boolean;
-  w: boolean;
-  s: boolean;
-  space: boolean;
 };
 
 type TrainingStats = {
-  activeSamples: number;
-  syncedSamples: number;
+  activeTicks: number;
+  syncedTicks: number;
   misses: number;
   wrongWay: number;
   overlaps: number;
-  forwardPenalties: number;
   currentStreak: number;
   bestStreak: number;
   activeMs: number;
@@ -29,29 +25,40 @@ type TrainingStats = {
 type MotionState = {
   direction: Direction;
   intensity: number;
-  quality: SampleQuality;
+  quality: TickQuality;
   smoothX: number;
 };
 
+type TickResult = {
+  id: number;
+  tickIndex: number;
+  direction: Direction;
+  quality: TickQuality;
+  symbol: string;
+  detail: string;
+  a: boolean;
+  d: boolean;
+  sessionMs: number;
+  smoothX: number;
+};
+
+const TICK_RATE = 64;
+const TICK_MS = 1000 / TICK_RATE;
+const RESULT_TICK_COUNT = 64;
 const DEADZONE = 1.6;
-const MOUSE_WINDOW = 8;
-const ACTIVE_GAP_CAP_MS = 120;
+const MOUSE_WINDOW = 6;
 
 const createKeys = (): KeyState => ({
   a: false,
   d: false,
-  w: false,
-  s: false,
-  space: false,
 });
 
 const createStats = (startedAt: number | null = null): TrainingStats => ({
-  activeSamples: 0,
-  syncedSamples: 0,
+  activeTicks: 0,
+  syncedTicks: 0,
   misses: 0,
   wrongWay: 0,
   overlaps: 0,
-  forwardPenalties: 0,
   currentStreak: 0,
   bestStreak: 0,
   activeMs: 0,
@@ -66,12 +73,11 @@ const initialMotion: MotionState = {
   smoothX: 0,
 };
 
-const qualityLabels: Record<SampleQuality, string> = {
+const qualityLabels: Record<TickQuality, string> = {
   sync: "Synced",
   miss: "No key",
   wrong: "Wrong key",
   overlap: "Overlap",
-  forward: "Release W/S",
   neutral: "Neutral",
 };
 
@@ -84,12 +90,6 @@ const getKeyFromCode = (code: string): keyof KeyState | null => {
       return "a";
     case "KeyD":
       return "d";
-    case "KeyW":
-      return "w";
-    case "KeyS":
-      return "s";
-    case "Space":
-      return "space";
     default:
       return null;
   }
@@ -108,11 +108,11 @@ const getDirection = (smoothX: number): Direction => {
 };
 
 const getSyncRate = (stats: TrainingStats) => {
-  if (stats.activeSamples === 0) {
+  if (stats.activeTicks === 0) {
     return 0;
   }
 
-  return Math.round((stats.syncedSamples / stats.activeSamples) * 100);
+  return Math.round((stats.syncedTicks / stats.activeTicks) * 100);
 };
 
 const formatTime = (milliseconds: number) => {
@@ -123,16 +123,18 @@ const formatTime = (milliseconds: number) => {
   return `${minutes}:${seconds}`;
 };
 
+const formatSeconds = (milliseconds: number) =>
+  `${(Math.max(0, milliseconds) / 1000).toFixed(2)}s`;
+
 const getResultLabel = (stats: TrainingStats) => {
-  if (stats.activeSamples === 0) {
+  if (stats.activeTicks === 0) {
     return "No Samples";
   }
 
   const syncRate = getSyncRate(stats);
-  const overlapRate = stats.overlaps / stats.activeSamples;
-  const wrongRate = stats.wrongWay / stats.activeSamples;
-  const missRate = stats.misses / stats.activeSamples;
-  const forwardRate = stats.forwardPenalties / stats.activeSamples;
+  const overlapRate = stats.overlaps / stats.activeTicks;
+  const wrongRate = stats.wrongWay / stats.activeTicks;
+  const missRate = stats.misses / stats.activeTicks;
 
   if (overlapRate > 0.12) {
     return "Too Much Overlap";
@@ -146,10 +148,6 @@ const getResultLabel = (stats: TrainingStats) => {
     return "Late";
   }
 
-  if (forwardRate > 0.12) {
-    return "Release W/S";
-  }
-
   if (syncRate >= 95) {
     return "Perfect";
   }
@@ -161,6 +159,173 @@ const getResultLabel = (stats: TrainingStats) => {
   return "Needs Sync";
 };
 
+const getTickSymbol = (quality: TickQuality) => {
+  switch (quality) {
+    case "sync":
+      return "•";
+    case "miss":
+      return "M";
+    case "wrong":
+      return "X";
+    case "overlap":
+      return "O";
+    case "neutral":
+      return "·";
+  }
+};
+
+const getTickDetail = (quality: TickQuality, direction: Direction) => {
+  switch (quality) {
+    case "sync":
+      return direction === "left" ? "Mouse left + A" : "Mouse right + D";
+    case "miss":
+      return "Mouse movement without A/D input";
+    case "wrong":
+      return `Mouse ${direction} with the opposite strafe key`;
+    case "overlap":
+      return "A and D held together";
+    case "neutral":
+      return "Neutral tick";
+  }
+};
+
+type TickLane = "mouseLeft" | "mouseRight" | "a" | "d";
+
+const tickLanes: Array<{ id: TickLane; label: string }> = [
+  { id: "mouseLeft", label: "Mouse L" },
+  { id: "mouseRight", label: "Mouse R" },
+  { id: "a", label: "A" },
+  { id: "d", label: "D" },
+];
+
+const getLaneActive = (lane: TickLane, tick: TickResult) => {
+  switch (lane) {
+    case "mouseLeft":
+      return tick.direction === "left";
+    case "mouseRight":
+      return tick.direction === "right";
+    case "a":
+      return tick.a;
+    case "d":
+      return tick.d;
+  }
+};
+
+const getLaneSymbol = (lane: TickLane, tick: TickResult) => {
+  switch (lane) {
+    case "mouseLeft":
+      return tick.direction === "left" ? tick.symbol : "·";
+    case "mouseRight":
+      return tick.direction === "right" ? tick.symbol : "·";
+    case "a":
+      return tick.a ? "A" : "·";
+    case "d":
+      return tick.d ? "D" : "·";
+  }
+};
+
+const getLaneQuality = (lane: TickLane, tick: TickResult): TickQuality | "key-neutral" => {
+  const laneActive = getLaneActive(lane, tick);
+
+  if (!laneActive) {
+    return "neutral";
+  }
+
+  if (lane === "a") {
+    if (tick.quality === "overlap") {
+      return "overlap";
+    }
+
+    if (tick.direction === "left" && tick.quality === "sync") {
+      return "sync";
+    }
+
+    if (tick.direction === "right" && tick.quality === "wrong") {
+      return "wrong";
+    }
+
+    return "key-neutral";
+  }
+
+  if (lane === "d") {
+    if (tick.quality === "overlap") {
+      return "overlap";
+    }
+
+    if (tick.direction === "right" && tick.quality === "sync") {
+      return "sync";
+    }
+
+    if (tick.direction === "left" && tick.quality === "wrong") {
+      return "wrong";
+    }
+
+    return "key-neutral";
+  }
+
+  return tick.quality;
+};
+
+function TickTimeline({ ticks }: { ticks: TickResult[] }) {
+  const visibleTicks = ticks.slice(-RESULT_TICK_COUNT);
+  const emptySlots = Math.max(0, RESULT_TICK_COUNT - visibleTicks.length);
+  const slots: Array<TickResult | null> = [
+    ...Array.from({ length: emptySlots }, () => null),
+    ...visibleTicks,
+  ];
+
+  return (
+    <section className="tick-timeline-panel" aria-label="64 tick input timeline">
+      <div className="strip-heading">
+        <span>Tick timeline</span>
+        <strong>4 lanes / {RESULT_TICK_COUNT} ticks</strong>
+      </div>
+
+      <div className="tick-timeline">
+        {tickLanes.map(lane => (
+          <div className="tick-lane" key={lane.id}>
+            <div className="tick-lane-label">{lane.label}</div>
+            <div className="tick-lane-cells">
+              {slots.map((tick, index) => {
+                const laneQuality = tick ? getLaneQuality(lane.id, tick) : "neutral";
+                const symbol = tick ? getLaneSymbol(lane.id, tick) : "·";
+                const tooltip = tick
+                  ? `${lane.label} | Tick ${tick.tickIndex} | ${qualityLabels[tick.quality]} | ${tick.detail} | A:${tick.a ? "on" : "off"} D:${tick.d ? "on" : "off"} | ${formatSeconds(tick.sessionMs)}`
+                  : `${lane.label} | Waiting for tick`;
+
+                return (
+                  <div
+                    aria-label={tooltip}
+                    className={classNames(
+                      "tick-cell",
+                      tick && getLaneActive(lane.id, tick) && "active",
+                      `tick-${laneQuality}`,
+                    )}
+                    data-tooltip={tooltip}
+                    key={tick ? `${lane.id}-${tick.id}` : `${lane.id}-empty-${index}`}
+                    role="img"
+                    tabIndex={0}
+                  >
+                    {symbol}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="strip-legend" aria-label="Result strip legend">
+        <span><b className="legend-sync">•</b> sync</span>
+        <span><b className="legend-miss">M</b> no key</span>
+        <span><b className="legend-wrong">X</b> wrong</span>
+        <span><b className="legend-overlap">O</b> overlap</span>
+        <span><b className="legend-neutral">·</b> neutral</span>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   const trainerRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef<KeyState>(createKeys());
@@ -168,11 +333,13 @@ export function App() {
   const trainingRef = useRef(false);
   const lockedRef = useRef(false);
   const mouseWindowRef = useRef<number[]>([]);
-  const lastActiveAtRef = useRef<number | null>(null);
+  const mouseDeltaRef = useRef(0);
+  const tickIndexRef = useRef(0);
 
   const [keys, setKeys] = useState<KeyState>(() => createKeys());
   const [stats, setStats] = useState<TrainingStats>(() => createStats());
   const [motion, setMotion] = useState<MotionState>(initialMotion);
+  const [ticks, setTicks] = useState<TickResult[]>([]);
   const [isTraining, setIsTraining] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -210,8 +377,8 @@ export function App() {
   const finishTraining = useCallback((nextStatus: string, exitLock: boolean) => {
     const now = performance.now();
     trainingRef.current = false;
-    lastActiveAtRef.current = null;
     mouseWindowRef.current = [];
+    mouseDeltaRef.current = 0;
     setIsTraining(false);
     setClock(now);
     setStatus(nextStatus);
@@ -246,8 +413,10 @@ export function App() {
 
     trainingRef.current = true;
     lockedRef.current = document.pointerLockElement === element;
-    lastActiveAtRef.current = null;
     mouseWindowRef.current = [];
+    mouseDeltaRef.current = 0;
+    tickIndexRef.current = 0;
+    setTicks([]);
     setStatsState(freshStats);
     setKeysState(createKeys());
     setMotion(initialMotion);
@@ -269,8 +438,10 @@ export function App() {
   const resetTraining = useCallback(() => {
     trainingRef.current = false;
     lockedRef.current = false;
-    lastActiveAtRef.current = null;
     mouseWindowRef.current = [];
+    mouseDeltaRef.current = 0;
+    tickIndexRef.current = 0;
+    setTicks([]);
     setIsTraining(false);
     setIsLocked(false);
     setStatus("Ready");
@@ -284,9 +455,16 @@ export function App() {
     }
   }, [setKeysState, setStatsState]);
 
-  const processMouseMovement = useCallback((movementX: number, now: number) => {
+  const sampleTick = useCallback((now: number) => {
+    if (!trainingRef.current || !lockedRef.current) {
+      return;
+    }
+
+    const rawDelta = mouseDeltaRef.current;
+    mouseDeltaRef.current = 0;
+
     const windowValues = mouseWindowRef.current;
-    windowValues.push(movementX);
+    windowValues.push(rawDelta);
 
     if (windowValues.length > MOUSE_WINDOW) {
       windowValues.shift();
@@ -295,59 +473,62 @@ export function App() {
     const smoothX =
       windowValues.reduce((total, value) => total + value, 0) / windowValues.length;
     const direction = getDirection(smoothX);
-    const intensity = Math.min(100, Math.abs(smoothX) * 14);
-
-    if (direction === "neutral") {
-      setMotion({
-        direction,
-        intensity: 0,
-        quality: "neutral",
-        smoothX,
-      });
-      return;
-    }
-
+    const intensity = Math.min(100, Math.abs(smoothX) * 16);
     const currentKeys = keysRef.current;
-    const hasForwardPenalty = currentKeys.w || currentKeys.s;
     const hasOverlap = currentKeys.a && currentKeys.d;
     const expectedKey = direction === "left" ? "a" : "d";
     const oppositeKey = direction === "left" ? "d" : "a";
-    const hasExpectedKey = currentKeys[expectedKey];
-    const hasOppositeKey = currentKeys[oppositeKey];
+    const hasExpectedKey = direction !== "neutral" && currentKeys[expectedKey];
+    const hasOppositeKey = direction !== "neutral" && currentKeys[oppositeKey];
 
-    let quality: SampleQuality = "sync";
+    let quality: TickQuality = "neutral";
 
-    if (hasOverlap) {
-      quality = "overlap";
-    } else if (!hasExpectedKey && !hasOppositeKey) {
-      quality = "miss";
-    } else if (!hasExpectedKey && hasOppositeKey) {
-      quality = "wrong";
-    } else if (hasForwardPenalty) {
-      quality = "forward";
+    if (direction !== "neutral") {
+      if (hasOverlap) {
+        quality = "overlap";
+      } else if (!hasExpectedKey && !hasOppositeKey) {
+        quality = "miss";
+      } else if (!hasExpectedKey && hasOppositeKey) {
+        quality = "wrong";
+      } else {
+        quality = "sync";
+      }
     }
 
-    const lastActiveAt = lastActiveAtRef.current;
-    const activeDelta = lastActiveAt
-      ? Math.min(Math.max(now - lastActiveAt, 0), ACTIVE_GAP_CAP_MS)
-      : 16;
-    lastActiveAtRef.current = now;
-
     const currentStats = statsRef.current;
-    const isSynced = quality === "sync";
-    const nextStreak = isSynced ? currentStats.currentStreak + 1 : 0;
+    const activeTick = direction !== "neutral";
+    const syncedTick = quality === "sync";
+    const nextStreak = activeTick
+      ? syncedTick
+        ? currentStats.currentStreak + 1
+        : 0
+      : currentStats.currentStreak;
     const nextStats: TrainingStats = {
       ...currentStats,
-      activeSamples: currentStats.activeSamples + 1,
-      syncedSamples: currentStats.syncedSamples + (isSynced ? 1 : 0),
+      activeTicks: currentStats.activeTicks + (activeTick ? 1 : 0),
+      syncedTicks: currentStats.syncedTicks + (syncedTick ? 1 : 0),
       misses: currentStats.misses + (quality === "miss" ? 1 : 0),
       wrongWay: currentStats.wrongWay + (quality === "wrong" ? 1 : 0),
       overlaps: currentStats.overlaps + (quality === "overlap" ? 1 : 0),
-      forwardPenalties:
-        currentStats.forwardPenalties + (quality === "forward" ? 1 : 0),
       currentStreak: nextStreak,
       bestStreak: Math.max(currentStats.bestStreak, nextStreak),
-      activeMs: currentStats.activeMs + activeDelta,
+      activeMs: currentStats.activeMs + (activeTick ? TICK_MS : 0),
+    };
+
+    tickIndexRef.current += 1;
+
+    const sessionMs = currentStats.startedAt ? now - currentStats.startedAt : 0;
+    const tick: TickResult = {
+      id: tickIndexRef.current,
+      tickIndex: tickIndexRef.current,
+      direction,
+      quality,
+      symbol: getTickSymbol(quality),
+      detail: getTickDetail(quality, direction),
+      a: currentKeys.a,
+      d: currentKeys.d,
+      sessionMs,
+      smoothX,
     };
 
     setStatsState(nextStats);
@@ -357,6 +538,8 @@ export function App() {
       quality,
       smoothX,
     });
+    setTicks(previous => [...previous, tick].slice(-RESULT_TICK_COUNT));
+    setClock(now);
   }, [setStatsState]);
 
   useEffect(() => {
@@ -421,7 +604,7 @@ export function App() {
         return;
       }
 
-      processMouseMovement(event.movementX, performance.now());
+      mouseDeltaRef.current += event.movementX;
     };
 
     const onBlur = () => {
@@ -443,7 +626,7 @@ export function App() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("blur", onBlur);
     };
-  }, [finishTraining, processMouseMovement, updateKeysState]);
+  }, [finishTraining, updateKeysState]);
 
   useEffect(() => {
     if (!isTraining) {
@@ -451,20 +634,23 @@ export function App() {
     }
 
     const timer = window.setInterval(() => {
-      setClock(performance.now());
-    }, 100);
+      sampleTick(performance.now());
+    }, TICK_MS);
 
     return () => window.clearInterval(timer);
-  }, [isTraining]);
+  }, [isTraining, sampleTick]);
 
   const syncRate = getSyncRate(stats);
   const resultLabel = getResultLabel(stats);
   const durationMs = stats.startedAt
     ? (stats.endedAt ?? clock) - stats.startedAt
     : 0;
-  const barWidth = Math.min(48, Math.max(motion.intensity * 0.48, motion.direction === "neutral" ? 0 : 4));
+  const barWidth = Math.min(
+    48,
+    Math.max(motion.intensity * 0.48, motion.direction === "neutral" ? 0 : 4),
+  );
   const isActiveMotion = motion.direction !== "neutral";
-  const sessionState = isTraining ? "Live result" : stats.activeSamples > 0 ? "Last summary" : "Ready";
+  const sessionState = isTraining ? "Live result" : stats.activeTicks > 0 ? "Last summary" : "Ready";
   const activeTime = useMemo(() => formatTime(stats.activeMs), [stats.activeMs]);
   const sessionTime = useMemo(() => formatTime(durationMs), [durationMs]);
 
@@ -490,14 +676,6 @@ export function App() {
     );
   };
 
-  const getSecondaryKeyClass = (key: "w" | "s" | "space") =>
-    classNames(
-      "keycap",
-      "keycap-small",
-      keys[key] && "pressed",
-      (key === "w" || key === "s") && keys[key] && isActiveMotion && "warning",
-    );
-
   return (
     <div
       ref={trainerRef}
@@ -506,7 +684,7 @@ export function App() {
     >
       <header className="trainer-header">
         <div>
-          <p className="eyebrow">CS2 KZ sync trainer</p>
+          <p className="eyebrow">CS2 64 tick sync trainer</p>
           <h1>Air Strafer</h1>
         </div>
 
@@ -554,7 +732,7 @@ export function App() {
 
           <div className="motion-readout">
             <span>{qualityLabels[motion.quality]}</span>
-            <span>{Math.abs(motion.smoothX).toFixed(1)} dx</span>
+            <span>{Math.abs(motion.smoothX).toFixed(1)} dx/tick</span>
           </div>
         </section>
 
@@ -563,13 +741,9 @@ export function App() {
             <div className={getPrimaryKeyClass("a")}>A</div>
             <div className={getPrimaryKeyClass("d")}>D</div>
           </div>
-
-          <div className="secondary-keys">
-            <div className={getSecondaryKeyClass("w")}>W</div>
-            <div className={getSecondaryKeyClass("s")}>S</div>
-            <div className={getSecondaryKeyClass("space")}>Space</div>
-          </div>
         </section>
+
+        <TickTimeline ticks={ticks} />
 
         <section className="result-panel" aria-label="Training result">
           <div className="result-heading">
@@ -604,8 +778,8 @@ export function App() {
               <strong>{stats.overlaps}</strong>
             </div>
             <div>
-              <span>W/S</span>
-              <strong>{stats.forwardPenalties}</strong>
+              <span>Ticks</span>
+              <strong>{stats.activeTicks}</strong>
             </div>
             <div>
               <span>Active</span>
