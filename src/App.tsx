@@ -669,7 +669,7 @@ export function App() {
 
     return classNames(
       "keycap",
-      "keycap-large",
+      "keycap-compact",
       pressed && "pressed",
       isGood && "good",
       isBad && "bad",
@@ -730,17 +730,18 @@ export function App() {
             <div className="track-center" />
           </div>
 
-          <div className="motion-readout">
-            <span>{qualityLabels[motion.quality]}</span>
-            <span>{Math.abs(motion.smoothX).toFixed(1)} dx/tick</span>
-          </div>
-        </section>
+          <div className="mouse-support-row">
+            <div className="mini-keys" aria-label="Movement keys">
+              <div className={getPrimaryKeyClass("a")}>A</div>
+              <div className={getPrimaryKeyClass("d")}>D</div>
+            </div>
 
-        <section className="keys-panel" aria-label="Movement keys">
-          <div className="primary-keys">
-            <div className={getPrimaryKeyClass("a")}>A</div>
-            <div className={getPrimaryKeyClass("d")}>D</div>
+            <div className="motion-readout">
+              <span>{qualityLabels[motion.quality]}</span>
+              <span>{Math.abs(motion.smoothX).toFixed(1)} dx/tick</span>
+            </div>
           </div>
+
         </section>
 
         <TickTimeline ticks={ticks} />

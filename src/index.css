@@ -137,14 +137,13 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1.42fr) minmax(330px, 0.58fr);
   grid-template-areas:
-    "mouse keys"
-    "strip result";
+    "mouse result"
+    "strip strip";
   gap: 16px;
   align-items: stretch;
 }
 
 .mouse-panel,
-.keys-panel,
 .result-panel,
 .tick-timeline-panel {
   border: 1px solid #26313b;
@@ -250,13 +249,26 @@ h1 {
   box-shadow: 0 0 22px rgba(255, 77, 93, 0.24);
 }
 
-.motion-readout {
+.mouse-support-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.mini-keys {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.motion-readout {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   min-height: 2.25rem;
   gap: 12px;
-  margin-top: 18px;
   color: #dce4eb;
   font-size: clamp(1.05rem, 2vw, 1.34rem);
   font-weight: 900;
@@ -266,21 +278,6 @@ h1 {
   color: #8c98a4;
   font-size: 0.92rem;
   font-weight: 800;
-}
-
-.keys-panel {
-  grid-area: keys;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 315px;
-  padding: 22px;
-}
-
-.primary-keys {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
 }
 
 .keycap {
@@ -301,10 +298,10 @@ h1 {
     box-shadow 90ms ease;
 }
 
-.keycap-large {
-  min-width: 0;
-  height: clamp(128px, 15vw, 190px);
-  font-size: clamp(3.2rem, 7vw, 6rem);
+.keycap-compact {
+  width: clamp(56px, 5.4vw, 78px);
+  height: clamp(48px, 4.7vw, 66px);
+  font-size: clamp(1.25rem, 2.4vw, 2rem);
 }
 
 .keycap.pressed {
@@ -330,7 +327,7 @@ h1 {
 
 .tick-timeline-panel {
   grid-area: strip;
-  min-height: 286px;
+  min-height: 300px;
   padding: 18px 20px 20px;
 }
 
@@ -478,7 +475,7 @@ h1 {
 
 .result-panel {
   grid-area: result;
-  min-height: 238px;
+  min-height: 315px;
   padding: 20px;
 }
 
@@ -561,13 +558,11 @@ h1 {
     grid-template-columns: 1fr;
     grid-template-areas:
       "mouse"
-      "keys"
-      "strip"
-      "result";
+      "result"
+      "strip";
   }
 
   .mouse-panel,
-  .keys-panel,
   .result-panel,
   .tick-timeline-panel {
     min-height: auto;
@@ -580,12 +575,13 @@ h1 {
     min-width: 0;
   }
 
-  .primary-keys {
-    gap: 10px;
+  .mouse-support-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .keycap-large {
-    height: 108px;
+  .mini-keys {
+    width: 100%;
   }
 
   .tick-timeline-panel {
