@@ -129,6 +129,17 @@ export const useTrainerRuntime = ({
       }
     };
 
+    const onPointerLockError = () => {
+      const locked = document.pointerLockElement === trainerRef.current;
+      const store = useTrainerStore.getState();
+
+      store.setPointerLocked(locked);
+
+      if (!locked && store.isTraining) {
+        finishTraining(false);
+      }
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       const store = useTrainerStore.getState();
 
@@ -209,6 +220,7 @@ export const useTrainerRuntime = ({
     };
 
     document.addEventListener("pointerlockchange", onPointerLockChange);
+    document.addEventListener("pointerlockerror", onPointerLockError);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("mousemove", onMouseMove);
@@ -216,6 +228,7 @@ export const useTrainerRuntime = ({
 
     return () => {
       document.removeEventListener("pointerlockchange", onPointerLockChange);
+      document.removeEventListener("pointerlockerror", onPointerLockError);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("mousemove", onMouseMove);
