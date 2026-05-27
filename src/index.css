@@ -534,6 +534,18 @@ h1 {
   pointer-events: none;
 }
 
+.tick-cell.current-tick::after {
+  position: absolute;
+  inset: -5px auto -5px 50%;
+  z-index: 2;
+  width: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(32, 199, 196, 0.62);
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
 .tick-cell:nth-child(8n) {
   box-shadow: inset -1px 0 rgba(244, 247, 251, 0.18);
 }
@@ -623,6 +635,15 @@ h1 {
   height: 0.72rem;
   margin: 0 0.65rem;
   background: rgba(244, 247, 251, 0.74);
+}
+
+.legend-current {
+  display: inline-block;
+  width: 2px;
+  height: 0.72rem;
+  margin: 0 0.65rem;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(32, 199, 196, 0.52);
 }
 
 @media (max-width: 980px) {

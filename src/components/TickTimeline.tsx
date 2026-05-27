@@ -23,6 +23,7 @@ type TickTimelineProps = {
 
 type TickCellProps = {
   index: number;
+  isCurrentTick: boolean;
   lane: { id: TickLane; label: string };
   slots: TimelineSlot[];
   tick: TimelineSlot;
@@ -79,6 +80,7 @@ const getLaneDetail = (
 
 const TickCell = memo(function TickCell({
   index,
+  isCurrentTick,
   lane,
   slots,
   tick,
@@ -106,6 +108,7 @@ const TickCell = memo(function TickCell({
         laneActive && "active",
         joinsPrevious && "join-previous",
         joinsNext && "join-next",
+        isCurrentTick && "current-tick",
         strafeDivider && "strafe-divider",
         `tick-${laneQuality}`,
       )}
@@ -119,6 +122,7 @@ const TickCell = memo(function TickCell({
 function areTickCellsEqual(previous: TickCellProps, next: TickCellProps) {
   return (
     previous.index === next.index &&
+    previous.isCurrentTick === next.isCurrentTick &&
     previous.lane.id === next.lane.id &&
     previous.slots === next.slots &&
     previous.tick === next.tick
@@ -127,9 +131,17 @@ function areTickCellsEqual(previous: TickCellProps, next: TickCellProps) {
 
 export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelineProps) {
   const slots = useMemo(() => createTimelineSlots(ticks), [ticks]);
+  const latestTick = ticks.at(-1);
+  const currentTickSlot =
+    latestTick === undefined
+      ? null
+      : (latestTick.tickIndex - 1) % RESULT_TICK_COUNT;
 
   return (
-    <section className="tick-timeline-panel" aria-label="64 tick input timeline">
+    <section
+      className="tick-timeline-panel"
+      aria-label={`${RESULT_TICK_COUNT} tick input timeline`}
+    >
       <div className="strip-heading">
         <span>Tick timeline</span>
         <strong>4 lanes / {RESULT_TICK_COUNT} ticks</strong>
@@ -143,6 +155,7 @@ export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelinePr
               {slots.map((tick, index) => (
                 <TickCell
                   index={index}
+                  isCurrentTick={index === currentTickSlot}
                   key={
                     tick
                       ? `${lane.id}-${tick.tickIndex}`
@@ -165,6 +178,7 @@ export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelinePr
         <span><b className="legend-swatch legend-key-neutral" /> key only</span>
         <span><b className="legend-swatch legend-neutral" /> idle</span>
         <span><b className="legend-divider" /> strafe change</span>
+        <span><b className="legend-current" /> current tick</span>
       </div>
     </section>
   );

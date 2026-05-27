@@ -19,6 +19,7 @@ export type UseStrafeTrainerResult = {
 
 const selectTrainerState = ({
   clock,
+  isJumping,
   isLocked,
   isTraining,
   keys,
@@ -28,6 +29,7 @@ const selectTrainerState = ({
   ticks,
 }: TrainerState): TrainerState => ({
   clock,
+  isJumping,
   isLocked,
   isTraining,
   keys,

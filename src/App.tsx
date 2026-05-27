@@ -15,6 +15,7 @@ export function App() {
       ref={trainerRef}
       className={classNames(
         "app-shell",
+        state.isJumping && "jumping",
         state.isTraining && "training",
         state.isLocked && "locked",
       )}
@@ -23,6 +24,7 @@ export function App() {
       <TrainerHeader
         actions={actions}
         hasResults={derived.hasResults}
+        isJumping={state.isJumping}
         isTraining={state.isTraining}
       />
 

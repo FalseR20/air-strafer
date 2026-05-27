@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { TICK_MS } from "../domain/constants";
+import { JUMP_TICK_COUNT, TICK_MS } from "../domain/constants";
 import {
   getActiveTicks,
   getKeyFromCode,
@@ -30,7 +30,9 @@ export const useTrainerRuntime = ({
   trainerRef,
 }: UseTrainerRuntimeOptions): TrainerActions => {
   const runtimeRef = useRef<RuntimeBuffers>(createRuntimeBuffers());
+  const isJumping = useTrainerStore((state) => state.isJumping);
   const isTraining = useTrainerStore((state) => state.isTraining);
+  const startedAt = useTrainerStore((state) => state.startedAt);
 
   const resetRuntimeBuffers = useCallback(() => {
     runtimeRef.current = createRuntimeBuffers();
@@ -50,7 +52,7 @@ export const useTrainerRuntime = ({
     }
   }, [resetRuntimeBuffers, trainerRef]);
 
-  const startTraining = useCallback(() => {
+  const startPractice = useCallback(() => {
     const element = trainerRef.current;
 
     if (!element || !supportsPointerLock) {
@@ -61,11 +63,13 @@ export const useTrainerRuntime = ({
     const locked = document.pointerLockElement === element;
 
     resetRuntimeBuffers();
-    useTrainerStore.getState().startSession(now, locked);
+    useTrainerStore.getState().startPractice(now, locked);
 
     try {
-      const request = element.requestPointerLock() as Promise<void> | void;
-      request?.catch(() => finishTraining(false));
+      if (!locked) {
+        const request = element.requestPointerLock() as Promise<void> | void;
+        request?.catch(() => finishTraining(false));
+      }
     } catch {
       finishTraining(false);
     }
@@ -88,13 +92,53 @@ export const useTrainerRuntime = ({
     finishTraining(true);
   }, [finishTraining]);
 
+  const startJump = useCallback(() => {
+    const element = trainerRef.current;
+
+    if (!element || !supportsPointerLock) {
+      return;
+    }
+
+    const state = useTrainerStore.getState();
+
+    if (state.isJumping) {
+      return;
+    }
+
+    const now = performance.now();
+    const locked = document.pointerLockElement === element;
+
+    resetRuntimeBuffers();
+    state.startJump(now, locked);
+
+    try {
+      if (!locked) {
+        const request = element.requestPointerLock() as Promise<void> | void;
+        request?.catch(() => finishTraining(false));
+      }
+    } catch {
+      finishTraining(false);
+    }
+  }, [
+    finishTraining,
+    resetRuntimeBuffers,
+    supportsPointerLock,
+    trainerRef,
+  ]);
+
   const toggleTraining = useCallback(() => {
-    if (useTrainerStore.getState().isTraining) {
+    const state = useTrainerStore.getState();
+
+    if (state.isJumping) {
+      return;
+    }
+
+    if (state.isTraining) {
       finishTraining(true);
     } else {
-      startTraining();
+      startPractice();
     }
-  }, [finishTraining, startTraining]);
+  }, [finishTraining, startPractice]);
 
   const sampleTick = useCallback((now: number) => {
     const state = useTrainerStore.getState();
@@ -118,7 +162,11 @@ export const useTrainerRuntime = ({
     runtime.mouseWindow = nextTick.mouseWindow;
     runtime.tickIndex = nextTick.tick.tickIndex;
     useTrainerStore.getState().commitTick(nextTick, now);
-  }, []);
+
+    if (state.isJumping && nextTick.tick.tickIndex >= JUMP_TICK_COUNT) {
+      finishTraining(true);
+    }
+  }, [finishTraining]);
 
   useEffect(() => {
     const onPointerLockChange = () => {
@@ -146,7 +194,7 @@ export const useTrainerRuntime = ({
     const onKeyDown = (event: KeyboardEvent) => {
       const store = useTrainerStore.getState();
 
-      if (event.code === "Space") {
+      if (event.code === "KeyP") {
         event.preventDefault();
 
         if (!event.repeat) {
@@ -156,10 +204,20 @@ export const useTrainerRuntime = ({
         return;
       }
 
+      if (event.code === "Space") {
+        event.preventDefault();
+
+        if (!event.repeat) {
+          startJump();
+        }
+
+        return;
+      }
+
       if (event.code === "KeyR") {
         event.preventDefault();
 
-        if (getActiveTicks(store.stats) > 0) {
+        if (getActiveTicks(store.stats) > 0 || store.ticks.length > 0) {
           resetTraining();
         }
 
@@ -237,7 +295,7 @@ export const useTrainerRuntime = ({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("blur", onBlur);
     };
-  }, [finishTraining, resetTraining, toggleTraining, trainerRef]);
+  }, [finishTraining, resetTraining, startJump, toggleTraining, trainerRef]);
 
   useEffect(() => {
     if (!isTraining) {
@@ -263,17 +321,20 @@ export const useTrainerRuntime = ({
         nextTickAt = now + TICK_MS;
       }
 
-      scheduleNextTick();
+      if (useTrainerStore.getState().isTraining) {
+        scheduleNextTick();
+      }
     };
 
     scheduleNextTick();
 
     return () => window.clearTimeout(timeoutId);
-  }, [isTraining, sampleTick]);
+  }, [isTraining, sampleTick, startedAt]);
 
   return {
+    jump: startJump,
     reset: resetTraining,
-    start: startTraining,
+    start: startPractice,
     stop: stopTraining,
     toggle: toggleTraining,
   };

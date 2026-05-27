@@ -15,7 +15,8 @@ export type TrainerStoreActions = {
   resetSession: (now: number) => void;
   setKeyPressed: (key: KeyName, pressed: boolean) => void;
   setPointerLocked: (locked: boolean) => void;
-  startSession: (now: number, locked: boolean) => void;
+  startJump: (now: number, locked: boolean) => void;
+  startPractice: (now: number, locked: boolean) => void;
 };
 
 export type TrainerStore = TrainerState & TrainerStoreActions;
@@ -42,6 +43,7 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
       state.isTraining
         ? {
             clock: now,
+            isJumping: false,
             isTraining: false,
             keys: createKeys(),
             motion: initialMotion,
@@ -71,7 +73,17 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
       isLocked: locked,
     }),
 
-  startSession: (now, locked) =>
+  startJump: (now, locked) =>
+    set({
+      ...createTrainerState(now),
+      isJumping: true,
+      isLocked: locked,
+      isTraining: true,
+      startedAt: now,
+      stats: createStats(),
+    }),
+
+  startPractice: (now, locked) =>
     set({
       ...createTrainerState(now),
       isLocked: locked,

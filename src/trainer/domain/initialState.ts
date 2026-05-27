@@ -23,6 +23,7 @@ export const createTrainerState = (clock = 0): TrainerState => ({
   stats: createStats(),
   motion: initialMotion,
   ticks: [],
+  isJumping: false,
   isTraining: false,
   isLocked: false,
   startedAt: null,

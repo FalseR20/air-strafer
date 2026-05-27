@@ -33,13 +33,18 @@ export type TrainerState = {
   stats: TrainingStats;
   motion: MotionState;
   ticks: TickResult[];
+  isJumping: boolean;
   isTraining: boolean;
   isLocked: boolean;
   startedAt: number | null;
   clock: number;
 };
 
-export type TrainerSessionState = "Live result" | "Last summary" | "Ready";
+export type TrainerSessionState =
+  | "Jump attempt"
+  | "Last summary"
+  | "Practice ready"
+  | "Ready";
 
 export type TrainerDerivedState = {
   activeTime: string;
@@ -52,6 +57,7 @@ export type TrainerDerivedState = {
 };
 
 export type TrainerActions = {
+  jump: () => void;
   reset: () => void;
   start: () => void;
   stop: () => void;

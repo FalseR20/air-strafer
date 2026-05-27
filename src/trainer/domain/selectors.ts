@@ -5,13 +5,15 @@ import type { TrainerDerivedState, TrainerState } from "./types";
 
 export const getTrainerDerivedState = ({
   clock,
+  isJumping,
   isTraining,
   motion,
   startedAt,
   stats,
+  ticks,
 }: TrainerState): TrainerDerivedState => {
   const activeTicks = getActiveTicks(stats);
-  const hasResults = activeTicks > 0;
+  const hasResults = activeTicks > 0 || ticks.length > 0;
   const durationMs = startedAt !== null ? clock - startedAt : 0;
   const motionIntensity = Math.min(100, Math.abs(motion.smoothX) * 16);
   const barWidth = Math.min(
@@ -24,11 +26,13 @@ export const getTrainerDerivedState = ({
     barWidth,
     hasResults,
     resultLabel: hasResults ? getResultLabel(stats) : "",
-    sessionState: isTraining
-      ? "Live result"
-      : hasResults
-        ? "Last summary"
-        : "Ready",
+    sessionState: isJumping
+      ? "Jump attempt"
+      : isTraining
+        ? "Practice ready"
+        : hasResults
+          ? "Last summary"
+          : "Ready",
     sessionTime: formatTime(durationMs),
     syncRate: getSyncRate(stats),
   };
