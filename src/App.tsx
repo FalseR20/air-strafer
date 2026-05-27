@@ -342,8 +342,8 @@ export function App() {
   const [ticks, setTicks] = useState<TickResult[]>([]);
   const [isTraining, setIsTraining] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [status, setStatus] = useState("Ready");
   const [clock, setClock] = useState(() => performance.now());
+  const hasResults = stats.activeTicks > 0;
 
   const supportsPointerLock =
     typeof document !== "undefined" &&
@@ -374,14 +374,13 @@ export function App() {
     setStats(nextStats);
   }, []);
 
-  const finishTraining = useCallback((nextStatus: string, exitLock: boolean) => {
+  const finishTraining = useCallback((exitLock: boolean) => {
     const now = performance.now();
     trainingRef.current = false;
     mouseWindowRef.current = [];
     mouseDeltaRef.current = 0;
     setIsTraining(false);
     setClock(now);
-    setStatus(nextStatus);
     setMotion(initialMotion);
     setKeysState(createKeys());
 
@@ -404,7 +403,6 @@ export function App() {
     const element = trainerRef.current;
 
     if (!element || !supportsPointerLock) {
-      setStatus("Pointer lock unavailable");
       return;
     }
 
@@ -422,16 +420,15 @@ export function App() {
     setMotion(initialMotion);
     setIsTraining(true);
     setClock(now);
-    setStatus("Capturing");
 
     try {
       const request = element.requestPointerLock();
 
       if (request instanceof Promise) {
-        request.catch(() => finishTraining("Pointer lock denied", false));
+        request.catch(() => finishTraining(false));
       }
     } catch {
-      finishTraining("Pointer lock denied", false);
+      finishTraining(false);
     }
   }, [finishTraining, setKeysState, setStatsState, supportsPointerLock]);
 
@@ -444,7 +441,6 @@ export function App() {
     setTicks([]);
     setIsTraining(false);
     setIsLocked(false);
-    setStatus("Ready");
     setClock(performance.now());
     setKeysState(createKeys());
     setStatsState(createStats());
@@ -549,21 +545,44 @@ export function App() {
       setIsLocked(locked);
 
       if (locked) {
-        if (trainingRef.current) {
-          setStatus("Capturing");
-        }
         return;
       }
 
       if (trainingRef.current) {
-        finishTraining("Pointer lock lost", false);
+        finishTraining(false);
       }
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+
+        if (event.repeat) {
+          return;
+        }
+
+        if (trainingRef.current) {
+          finishTraining(true);
+        } else {
+          startTraining();
+        }
+
+        return;
+      }
+
+      if (event.code === "KeyR") {
+        event.preventDefault();
+
+        if (statsRef.current.activeTicks > 0) {
+          resetTraining();
+        }
+
+        return;
+      }
+
       if (event.code === "Escape" && trainingRef.current) {
         event.preventDefault();
-        finishTraining("Ready", true);
+        finishTraining(true);
         return;
       }
 
@@ -609,7 +628,7 @@ export function App() {
 
     const onBlur = () => {
       if (trainingRef.current) {
-        finishTraining("Pointer lock lost", true);
+        finishTraining(true);
       }
     };
 
@@ -626,7 +645,7 @@ export function App() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("blur", onBlur);
     };
-  }, [finishTraining, updateKeysState]);
+  }, [finishTraining, resetTraining, startTraining, updateKeysState]);
 
   useEffect(() => {
     if (!isTraining) {
@@ -641,7 +660,7 @@ export function App() {
   }, [isTraining, sampleTick]);
 
   const syncRate = getSyncRate(stats);
-  const resultLabel = getResultLabel(stats);
+  const resultLabel = hasResults ? getResultLabel(stats) : "";
   const durationMs = stats.startedAt
     ? (stats.endedAt ?? clock) - stats.startedAt
     : 0;
@@ -650,7 +669,7 @@ export function App() {
     Math.max(motion.intensity * 0.48, motion.direction === "neutral" ? 0 : 4),
   );
   const isActiveMotion = motion.direction !== "neutral";
-  const sessionState = isTraining ? "Live result" : stats.activeTicks > 0 ? "Last summary" : "Ready";
+  const sessionState = isTraining ? "Live result" : hasResults ? "Last summary" : "Ready";
   const activeTime = useMemo(() => formatTime(stats.activeMs), [stats.activeMs]);
   const sessionTime = useMemo(() => formatTime(durationMs), [durationMs]);
 
@@ -689,109 +708,106 @@ export function App() {
         </div>
 
         <div className="controls" aria-label="Training controls">
-          <button type="button" onClick={startTraining} disabled={isTraining}>
-            Start
+          <button
+            type="button"
+            onClick={isTraining ? () => finishTraining(true) : startTraining}
+          >
+            <span>{isTraining ? "Stop" : "Start"}</span>
+            <kbd>Space</kbd>
           </button>
-          <button type="button" onClick={() => finishTraining("Ready", true)} disabled={!isTraining}>
-            Stop
-          </button>
-          <button type="button" onClick={resetTraining}>
-            Reset
+          <button type="button" onClick={resetTraining} disabled={!hasResults}>
+            <span>Reset</span>
+            <kbd>R</kbd>
           </button>
         </div>
       </header>
-
-      <div className="capture-status" role="status">
-        <span className={classNames("status-dot", isLocked && "on")} />
-        <span>{status}</span>
-      </div>
 
       {!supportsPointerLock && (
         <p className="compat-note">Pointer lock unavailable in this browser.</p>
       )}
 
       <main className="training-grid">
-        <section className={classNames("mouse-panel", motion.quality)}>
-          <div className="panel-title">
-            <span>Mouse</span>
-            <strong>{motion.direction}</strong>
-          </div>
+        <section className={classNames("session-panel", motion.quality)} aria-label="Training overview">
+          <div className="stats-panel">
+            <div className="result-summary">
+              <div className="result-heading">
+                <span className="session-state">
+                  <span className={classNames("status-dot", isLocked && "on")} />
+                  <span>{sessionState}</span>
+                </span>
+                {resultLabel && <strong>{resultLabel}</strong>}
+              </div>
 
-          <div className="mouse-track" aria-label="Horizontal mouse movement">
-            <div className="track-axis" />
-            <div
-              className="mouse-fill mouse-fill-left"
-              style={{ width: motion.direction === "left" ? `${barWidth}%` : "0%" }}
-            />
-            <div
-              className="mouse-fill mouse-fill-right"
-              style={{ width: motion.direction === "right" ? `${barWidth}%` : "0%" }}
-            />
-            <div className="track-center" />
-          </div>
-
-          <div className="mouse-support-row">
-            <div className="mini-keys" aria-label="Movement keys">
-              <div className={getPrimaryKeyClass("a")}>A</div>
-              <div className={getPrimaryKeyClass("d")}>D</div>
+              <div className="sync-score">
+                <span>{syncRate}</span>
+                <small>% sync</small>
+              </div>
             </div>
 
-            <div className="motion-readout">
-              <span>{qualityLabels[motion.quality]}</span>
-              <span>{Math.abs(motion.smoothX).toFixed(1)} dx/tick</span>
+            <div className="stats-grid">
+              <div>
+                <span>Streak</span>
+                <strong>{stats.currentStreak}</strong>
+              </div>
+              <div>
+                <span>Best</span>
+                <strong>{stats.bestStreak}</strong>
+              </div>
+              <div>
+                <span>Miss</span>
+                <strong>{stats.misses}</strong>
+              </div>
+              <div>
+                <span>Wrong</span>
+                <strong>{stats.wrongWay}</strong>
+              </div>
+              <div>
+                <span>Overlap</span>
+                <strong>{stats.overlaps}</strong>
+              </div>
+              <div>
+                <span>Ticks</span>
+                <strong>{stats.activeTicks}</strong>
+              </div>
+              <div>
+                <span>Active</span>
+                <strong>{activeTime}</strong>
+              </div>
+              <div>
+                <span>Session</span>
+                <strong>{sessionTime}</strong>
+              </div>
             </div>
           </div>
 
+          <div className="input-panel">
+            <div className="mouse-track" aria-label="Horizontal mouse movement">
+              <div className="track-axis" />
+              <div
+                className="mouse-fill mouse-fill-left"
+                style={{ width: motion.direction === "left" ? `${barWidth}%` : "0%" }}
+              />
+              <div
+                className="mouse-fill mouse-fill-right"
+                style={{ width: motion.direction === "right" ? `${barWidth}%` : "0%" }}
+              />
+              <div className="track-center" />
+            </div>
+
+            <div className="mouse-support-row">
+              <div className="motion-state">{qualityLabels[motion.quality]}</div>
+
+              <div className="mini-keys" aria-label="Movement keys">
+                <div className={getPrimaryKeyClass("a")}>A</div>
+                <div className={getPrimaryKeyClass("d")}>D</div>
+              </div>
+
+              <div className="motion-delta">{Math.abs(motion.smoothX).toFixed(1)} dx/tick</div>
+            </div>
+          </div>
         </section>
 
         <TickTimeline ticks={ticks} />
-
-        <section className="result-panel" aria-label="Training result">
-          <div className="result-heading">
-            <span>{sessionState}</span>
-            <strong>{resultLabel}</strong>
-          </div>
-
-          <div className="sync-score">
-            <span>{syncRate}</span>
-            <small>% sync</small>
-          </div>
-
-          <div className="stats-grid">
-            <div>
-              <span>Streak</span>
-              <strong>{stats.currentStreak}</strong>
-            </div>
-            <div>
-              <span>Best</span>
-              <strong>{stats.bestStreak}</strong>
-            </div>
-            <div>
-              <span>Miss</span>
-              <strong>{stats.misses}</strong>
-            </div>
-            <div>
-              <span>Wrong</span>
-              <strong>{stats.wrongWay}</strong>
-            </div>
-            <div>
-              <span>Overlap</span>
-              <strong>{stats.overlaps}</strong>
-            </div>
-            <div>
-              <span>Ticks</span>
-              <strong>{stats.activeTicks}</strong>
-            </div>
-            <div>
-              <span>Active</span>
-              <strong>{activeTime}</strong>
-            </div>
-            <div>
-              <span>Session</span>
-              <strong>{sessionTime}</strong>
-            </div>
-          </div>
-        </section>
       </main>
     </div>
   );

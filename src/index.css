@@ -31,8 +31,13 @@ body {
 }
 
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
   min-width: 5.75rem;
   min-height: 2.4rem;
+  padding: 0.45rem 0.8rem;
   border: 1px solid #3d4852;
   border-radius: 8px;
   background: #181b20;
@@ -57,6 +62,25 @@ button:hover:not(:disabled) {
 button:disabled {
   color: #67717c;
   cursor: not-allowed;
+}
+
+button kbd {
+  min-width: 1.45rem;
+  padding: 0.18rem 0.35rem;
+  border: 1px solid #495560;
+  border-radius: 5px;
+  background: #0e1115;
+  color: #b8c4cf;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+button:disabled kbd {
+  border-color: #303842;
+  color: #67717c;
 }
 
 .app-shell {
@@ -98,22 +122,9 @@ h1 {
   gap: 10px;
 }
 
-.capture-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2rem;
-  gap: 10px;
-  margin-bottom: 14px;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid #26313b;
-  border-radius: 8px;
-  background: rgba(10, 12, 15, 0.72);
-  color: #aab7c2;
-  font-size: 0.86rem;
-  font-weight: 700;
-}
-
 .status-dot {
+  display: inline-block;
+  flex: 0 0 auto;
   width: 0.62rem;
   height: 0.62rem;
   border-radius: 999px;
@@ -135,16 +146,15 @@ h1 {
 
 .training-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.42fr) minmax(330px, 0.58fr);
+  grid-template-columns: 1fr;
   grid-template-areas:
-    "mouse result"
-    "strip strip";
+    "session"
+    "strip";
   gap: 16px;
   align-items: stretch;
 }
 
-.mouse-panel,
-.result-panel,
+.session-panel,
 .tick-timeline-panel {
   border: 1px solid #26313b;
   border-radius: 8px;
@@ -152,10 +162,48 @@ h1 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.mouse-panel {
-  grid-area: mouse;
-  min-height: 315px;
-  padding: clamp(18px, 2.5vw, 28px);
+.session-panel {
+  display: flex;
+  flex-direction: column;
+  grid-area: session;
+  gap: 14px;
+  min-height: 0;
+  padding: clamp(14px, 1.8vw, 20px);
+}
+
+.input-panel,
+.stats-panel {
+  min-width: 0;
+}
+
+.input-panel {
+  display: block;
+}
+
+.stats-panel {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.22fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #26313b;
+}
+
+.result-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.result-summary .result-heading {
+  margin-bottom: 0;
+}
+
+.session-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .panel-title,
@@ -183,7 +231,7 @@ h1 {
 
 .mouse-track {
   position: relative;
-  height: clamp(74px, 11vw, 116px);
+  height: clamp(58px, 7vw, 84px);
   overflow: hidden;
   border: 1px solid #38434e;
   border-radius: 8px;
@@ -204,8 +252,8 @@ h1 {
 
 .track-center {
   position: absolute;
-  top: 14px;
-  bottom: 14px;
+  top: 10px;
+  bottom: 10px;
   left: 50%;
   width: 2px;
   background: #74808b;
@@ -215,7 +263,7 @@ h1 {
 .mouse-fill {
   position: absolute;
   top: 50%;
-  height: 34px;
+  height: 28px;
   border-radius: 8px;
   background: #59626d;
   transform: translateY(-50%);
@@ -233,28 +281,28 @@ h1 {
   left: 50%;
 }
 
-.mouse-panel.sync .mouse-fill {
+.session-panel.sync .mouse-fill {
   background: #27d17f;
   box-shadow: 0 0 22px rgba(39, 209, 127, 0.28);
 }
 
-.mouse-panel.miss .mouse-fill {
+.session-panel.miss .mouse-fill {
   background: #ffcf5c;
   box-shadow: 0 0 22px rgba(255, 207, 92, 0.22);
 }
 
-.mouse-panel.wrong .mouse-fill,
-.mouse-panel.overlap .mouse-fill {
+.session-panel.wrong .mouse-fill,
+.session-panel.overlap .mouse-fill {
   background: #ff4d5d;
   box-shadow: 0 0 22px rgba(255, 77, 93, 0.24);
 }
 
 .mouse-support-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 18px;
+  gap: 12px;
+  margin-top: 10px;
 }
 
 .mini-keys {
@@ -263,21 +311,21 @@ h1 {
   gap: 8px;
 }
 
-.motion-readout {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: 2.25rem;
-  gap: 12px;
+.motion-state,
+.motion-delta {
   color: #dce4eb;
-  font-size: clamp(1.05rem, 2vw, 1.34rem);
+  font-size: clamp(0.92rem, 1.4vw, 1.08rem);
   font-weight: 900;
 }
 
-.motion-readout span:last-child {
+.motion-state {
+  justify-self: start;
+}
+
+.motion-delta {
+  justify-self: end;
   color: #8c98a4;
-  font-size: 0.92rem;
-  font-weight: 800;
+  text-align: right;
 }
 
 .keycap {
@@ -299,9 +347,9 @@ h1 {
 }
 
 .keycap-compact {
-  width: clamp(56px, 5.4vw, 78px);
-  height: clamp(48px, 4.7vw, 66px);
-  font-size: clamp(1.25rem, 2.4vw, 2rem);
+  width: clamp(46px, 4.4vw, 60px);
+  height: clamp(38px, 3.7vw, 48px);
+  font-size: clamp(1.05rem, 1.9vw, 1.45rem);
 }
 
 .keycap.pressed {
@@ -473,22 +521,15 @@ h1 {
   color: #74808b;
 }
 
-.result-panel {
-  grid-area: result;
-  min-height: 315px;
-  padding: 20px;
-}
-
 .sync-score {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 18px;
 }
 
 .sync-score span {
   color: #ffffff;
-  font-size: clamp(3rem, 7vw, 5rem);
+  font-size: clamp(2.2rem, 4.8vw, 3.6rem);
   font-weight: 950;
   line-height: 0.9;
 }
@@ -502,13 +543,13 @@ h1 {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .stats-grid div {
-  min-height: 56px;
-  padding: 10px;
+  min-height: 48px;
+  padding: 8px 10px;
   border: 1px solid #242f39;
   border-radius: 8px;
   background: #111418;
@@ -516,7 +557,7 @@ h1 {
 
 .stats-grid span {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   color: #7f8b97;
   font-size: 0.72rem;
   font-weight: 800;
@@ -525,7 +566,7 @@ h1 {
 
 .stats-grid strong {
   color: #f4f7fb;
-  font-size: 1.12rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -557,15 +598,21 @@ h1 {
   .training-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "mouse"
-      "result"
+      "session"
       "strip";
   }
 
-  .mouse-panel,
-  .result-panel,
+  .session-panel,
   .tick-timeline-panel {
     min-height: auto;
+  }
+
+  .stats-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -575,13 +622,12 @@ h1 {
     min-width: 0;
   }
 
-  .mouse-support-row {
-    align-items: flex-start;
-    flex-direction: column;
+  .session-panel {
+    padding: 14px;
   }
 
   .mini-keys {
-    width: 100%;
+    justify-content: center;
   }
 
   .tick-timeline-panel {
@@ -607,6 +653,6 @@ h1 {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
