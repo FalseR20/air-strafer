@@ -25,13 +25,23 @@ export type LaneRunEdges = {
 };
 
 export const createTimelineSlots = (ticks: TickResult[]) => {
-  const visibleTicks = ticks.slice(-RESULT_TICK_COUNT);
-  const emptySlots = Math.max(0, RESULT_TICK_COUNT - visibleTicks.length);
+  const latestTick = ticks.at(-1);
+  const currentPage = latestTick
+    ? Math.floor((latestTick.tickIndex - 1) / RESULT_TICK_COUNT)
+    : 0;
+  const slots = Array.from<TimelineSlot>({ length: RESULT_TICK_COUNT }).fill(
+    null,
+  );
 
-  return [
-    ...Array.from({ length: emptySlots }, () => null),
-    ...visibleTicks,
-  ] satisfies TimelineSlot[];
+  for (const tick of ticks) {
+    const tickPage = Math.floor((tick.tickIndex - 1) / RESULT_TICK_COUNT);
+
+    if (tickPage === currentPage) {
+      slots[(tick.tickIndex - 1) % RESULT_TICK_COUNT] = tick;
+    }
+  }
+
+  return slots;
 };
 
 export const getLaneActive = (lane: TickLane, tick: TickResult) => {
