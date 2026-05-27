@@ -6,11 +6,18 @@ export type TickLane = "mouseLeft" | "mouseRight" | "a" | "d";
 export type TickLaneQuality = TickQuality | "key-neutral";
 
 export const tickLanes: Array<{ id: TickLane; label: string }> = [
-  { id: "mouseLeft", label: "Mouse L" },
-  { id: "mouseRight", label: "Mouse R" },
   { id: "a", label: "A" },
   { id: "d", label: "D" },
+  { id: "mouseLeft", label: "Mouse L" },
+  { id: "mouseRight", label: "Mouse R" },
 ];
+
+export type TimelineSlot = TickResult | null;
+
+export type LaneRunEdges = {
+  joinsNext: boolean;
+  joinsPrevious: boolean;
+};
 
 export const createTimelineSlots = (ticks: TickResult[]) => {
   const visibleTicks = ticks.slice(-RESULT_TICK_COUNT);
@@ -19,7 +26,7 @@ export const createTimelineSlots = (ticks: TickResult[]) => {
   return [
     ...Array.from({ length: emptySlots }, () => null),
     ...visibleTicks,
-  ] satisfies Array<TickResult | null>;
+  ] satisfies TimelineSlot[];
 };
 
 export const getLaneActive = (lane: TickLane, tick: TickResult) => {
@@ -32,19 +39,6 @@ export const getLaneActive = (lane: TickLane, tick: TickResult) => {
       return tick.a;
     case "d":
       return tick.d;
-  }
-};
-
-export const getLaneSymbol = (lane: TickLane, tick: TickResult) => {
-  switch (lane) {
-    case "mouseLeft":
-      return tick.direction === "left" ? tick.symbol : "·";
-    case "mouseRight":
-      return tick.direction === "right" ? tick.symbol : "·";
-    case "a":
-      return tick.a ? "A" : "·";
-    case "d":
-      return tick.d ? "D" : "·";
   }
 };
 
@@ -91,4 +85,33 @@ export const getLaneQuality = (
   }
 
   return tick.quality;
+};
+
+const canJoinTicks = (
+  lane: TickLane,
+  currentTick: TimelineSlot,
+  adjacentTick: TimelineSlot,
+) => {
+  if (!currentTick || !adjacentTick) {
+    return false;
+  }
+
+  if (!getLaneActive(lane, currentTick) || !getLaneActive(lane, adjacentTick)) {
+    return false;
+  }
+
+  return getLaneQuality(lane, currentTick) === getLaneQuality(lane, adjacentTick);
+};
+
+export const getLaneRunEdges = (
+  lane: TickLane,
+  slots: TimelineSlot[],
+  index: number,
+): LaneRunEdges => {
+  const currentTick = slots[index] ?? null;
+
+  return {
+    joinsPrevious: canJoinTicks(lane, currentTick, slots[index - 1] ?? null),
+    joinsNext: canJoinTicks(lane, currentTick, slots[index + 1] ?? null),
+  };
 };

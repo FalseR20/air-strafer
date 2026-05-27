@@ -468,7 +468,7 @@ h1 {
 
 .tick-timeline {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .tick-lane {
@@ -489,60 +489,77 @@ h1 {
 .tick-lane-cells {
   display: grid;
   grid-template-columns: repeat(64, minmax(5px, 1fr));
-  gap: 3px;
+  gap: 0;
   align-items: center;
-  padding: 7px;
+  padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   background: #0f1215;
+  overflow: hidden;
 }
 
 .tick-cell {
   position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1 / 1;
+  display: block;
+  width: 100%;
+  height: 19px;
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 4px;
-  color: #ffffff;
-  font-size: 0.62rem;
-  font-weight: 950;
-  line-height: 1;
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset -1px 0 rgba(6, 8, 10, 0.42);
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
   outline: none;
+  transition:
+    background-color 80ms ease,
+    opacity 80ms ease;
 }
 
 .tick-cell:not(.active) {
-  opacity: 0.55;
+  opacity: 0.64;
+}
+
+.tick-cell.active {
+  opacity: 1;
+}
+
+.tick-cell:nth-child(8n) {
+  box-shadow: inset -1px 0 rgba(244, 247, 251, 0.18);
+}
+
+.tick-cell.active:not(.join-previous),
+.tick-cell.active:not(.join-next) {
+  border-radius: 0;
+}
+
+.tick-cell:focus-visible {
+  outline: 2px solid rgba(244, 247, 251, 0.72);
+  outline-offset: 2px;
+  z-index: 1;
 }
 
 .tick-sync {
-  background: #198a52;
-  box-shadow: 0 0 12px rgba(39, 209, 127, 0.18);
+  background: var(--good);
 }
 
 .tick-miss {
-  background: #b57912;
-  box-shadow: 0 0 12px rgba(255, 207, 92, 0.2);
+  background: var(--warn);
 }
 
 .tick-wrong,
 .tick-overlap {
-  background: #b62c3b;
-  box-shadow: 0 0 12px rgba(255, 77, 93, 0.2);
+  background: var(--bad);
 }
 
 .tick-neutral,
 .tick-empty,
 .tick-key-neutral {
   background: #24282d;
-  color: #707b85;
 }
 
 .tick-key-neutral.active {
   background: #148ca8;
-  color: #e8fbff;
-  box-shadow: 0 0 12px rgba(32, 199, 196, 0.16);
 }
 
 .strip-legend {
@@ -556,26 +573,40 @@ h1 {
   text-transform: uppercase;
 }
 
-.strip-legend b {
-  margin-right: 4px;
-  font-size: 0.9rem;
+.strip-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 1.3rem;
+  height: 0.48rem;
+  border-radius: 2px;
+  margin-right: 0;
 }
 
 .legend-sync {
-  color: var(--good);
+  background: var(--good);
 }
 
 .legend-miss {
-  color: var(--warn);
+  background: var(--warn);
 }
 
 .legend-wrong,
 .legend-overlap {
-  color: var(--bad);
+  background: var(--bad);
+}
+
+.legend-key-neutral {
+  background: #148ca8;
 }
 
 .legend-neutral {
-  color: #7b858e;
+  background: #24282d;
+  border: 1px solid #394149;
 }
 
 @media (max-width: 980px) {
@@ -669,12 +700,12 @@ h1 {
 
   .tick-lane-cells {
     grid-template-columns: repeat(64, minmax(3px, 1fr));
-    gap: 1px;
+    gap: 0;
     padding: 6px;
   }
 
   .tick-cell {
-    font-size: 0.42rem;
+    height: 14px;
   }
 
   .stats-grid {

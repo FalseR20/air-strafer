@@ -6,9 +6,10 @@ import {
   createTimelineSlots,
   getLaneActive,
   getLaneQuality,
-  getLaneSymbol,
+  getLaneRunEdges,
   tickLanes,
   type TickLane,
+  type TimelineSlot,
 } from "../lib/timeline";
 import type { TickResult } from "../lib/types";
 
@@ -19,12 +20,19 @@ type TickTimelineProps = {
 type TickCellProps = {
   index: number;
   lane: { id: TickLane; label: string };
-  tick: TickResult | null;
+  slots: TimelineSlot[];
+  tick: TimelineSlot;
 };
 
-const TickCell = memo(function TickCell({ index, lane, tick }: TickCellProps) {
+const TickCell = memo(function TickCell({
+  index,
+  lane,
+  slots,
+  tick,
+}: TickCellProps) {
   const laneQuality = tick ? getLaneQuality(lane.id, tick) : "neutral";
-  const symbol = tick ? getLaneSymbol(lane.id, tick) : "·";
+  const laneActive = tick ? getLaneActive(lane.id, tick) : false;
+  const { joinsNext, joinsPrevious } = getLaneRunEdges(lane.id, slots, index);
   const tooltip = tick
     ? `${lane.label} | Tick ${tick.tickIndex} | ${qualityLabels[tick.quality]} | ${tick.detail} | A:${tick.a ? "on" : "off"} D:${tick.d ? "on" : "off"} | ${formatSeconds(tick.sessionMs)}`
     : `${lane.label} | Waiting for tick`;
@@ -34,15 +42,15 @@ const TickCell = memo(function TickCell({ index, lane, tick }: TickCellProps) {
       aria-label={tooltip}
       className={classNames(
         "tick-cell",
-        tick && getLaneActive(lane.id, tick) && "active",
+        laneActive && "active",
+        joinsPrevious && "join-previous",
+        joinsNext && "join-next",
         `tick-${laneQuality}`,
       )}
       role="img"
       tabIndex={0}
       title={tooltip}
-    >
-      {symbol}
-    </div>
+    />
   );
 }, areTickCellsEqual);
 
@@ -50,6 +58,7 @@ function areTickCellsEqual(previous: TickCellProps, next: TickCellProps) {
   return (
     previous.index === next.index &&
     previous.lane.id === next.lane.id &&
+    previous.slots === next.slots &&
     previous.tick === next.tick
   );
 }
@@ -74,6 +83,7 @@ export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelinePr
                   index={index}
                   key={tick ? `${lane.id}-${tick.id}` : `${lane.id}-empty-${index}`}
                   lane={lane}
+                  slots={slots}
                   tick={tick}
                 />
               ))}
@@ -83,11 +93,12 @@ export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelinePr
       </div>
 
       <div className="strip-legend" aria-label="Result strip legend">
-        <span><b className="legend-sync">•</b> sync</span>
-        <span><b className="legend-miss">M</b> no key</span>
-        <span><b className="legend-wrong">X</b> wrong</span>
-        <span><b className="legend-overlap">O</b> overlap</span>
-        <span><b className="legend-neutral">·</b> neutral</span>
+        <span><b className="legend-swatch legend-sync" /> synced</span>
+        <span><b className="legend-swatch legend-miss" /> missing key</span>
+        <span><b className="legend-swatch legend-wrong" /> opposite key</span>
+        <span><b className="legend-swatch legend-overlap" /> A+D overlap</span>
+        <span><b className="legend-swatch legend-key-neutral" /> key only</span>
+        <span><b className="legend-swatch legend-neutral" /> idle</span>
       </div>
     </section>
   );
