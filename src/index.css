@@ -380,8 +380,8 @@ h1 {
 
 .session-panel.wrong .mouse-fill,
 .session-panel.overlap .mouse-fill {
-  background: var(--bad);
-  box-shadow: 0 0 22px rgba(255, 77, 93, 0.24);
+  background: var(--warn);
+  box-shadow: 0 0 22px rgba(255, 207, 92, 0.22);
 }
 
 .mouse-support-row {
@@ -524,6 +524,16 @@ h1 {
   opacity: 1;
 }
 
+.tick-cell.strafe-divider::before {
+  position: absolute;
+  inset: -2px auto -2px 0;
+  z-index: 1;
+  width: 2px;
+  background: rgba(244, 247, 251, 0.74);
+  content: "";
+  pointer-events: none;
+}
+
 .tick-cell:nth-child(8n) {
   box-shadow: inset -1px 0 rgba(244, 247, 251, 0.18);
 }
@@ -543,12 +553,11 @@ h1 {
   background: var(--good);
 }
 
-.tick-miss {
+.tick-mouse {
   background: var(--warn);
 }
 
-.tick-wrong,
-.tick-overlap {
+.tick-wrong {
   background: var(--bad);
 }
 
@@ -559,7 +568,7 @@ h1 {
 }
 
 .tick-key-neutral.active {
-  background: #148ca8;
+  background: #2f8cff;
 }
 
 .strip-legend {
@@ -591,22 +600,29 @@ h1 {
   background: var(--good);
 }
 
-.legend-miss {
+.legend-mouse {
   background: var(--warn);
 }
 
-.legend-wrong,
-.legend-overlap {
+.legend-wrong {
   background: var(--bad);
 }
 
 .legend-key-neutral {
-  background: #148ca8;
+  background: #2f8cff;
 }
 
 .legend-neutral {
   background: #24282d;
   border: 1px solid #394149;
+}
+
+.legend-divider {
+  display: inline-block;
+  width: 2px;
+  height: 0.72rem;
+  margin: 0 0.65rem;
+  background: rgba(244, 247, 251, 0.74);
 }
 
 @media (max-width: 980px) {

@@ -1,16 +1,20 @@
 import { RESULT_TICK_COUNT } from "../trainer/domain/constants";
-import { getTickQuality } from "../trainer/domain/scoring";
-import type { TickQuality, TickResult } from "../trainer/domain/types";
+import type { Direction, KeyName, TickResult } from "../trainer/domain/types";
 
 export type TickLane = "mouseLeft" | "mouseRight" | "a" | "d";
 
-export type TickLaneQuality = TickQuality | "key-neutral";
+export type TickLaneQuality =
+  | "mouse"
+  | "sync"
+  | "wrong"
+  | "neutral"
+  | "key-neutral";
 
 export const tickLanes: Array<{ id: TickLane; label: string }> = [
-  { id: "a", label: "A" },
-  { id: "d", label: "D" },
   { id: "mouseLeft", label: "Mouse L" },
   { id: "mouseRight", label: "Mouse R" },
+  { id: "a", label: "A" },
+  { id: "d", label: "D" },
 ];
 
 export type TimelineSlot = TickResult | null;
@@ -48,45 +52,69 @@ export const getLaneQuality = (
   tick: TickResult,
 ): TickLaneQuality => {
   const laneActive = getLaneActive(lane, tick);
-  const tickQuality = getTickQuality(tick.direction, tick.keys);
 
   if (!laneActive) {
     return "neutral";
   }
 
-  if (lane === "a") {
-    if (tickQuality === "overlap") {
-      return "overlap";
+  if (lane === "mouseLeft" || lane === "mouseRight") {
+    const expectedKey = getExpectedKey(tick.direction);
+    const wrongKey = getWrongKey(tick.direction);
+
+    if (wrongKey && tick.keys[wrongKey]) {
+      return "mouse";
     }
 
-    if (tick.direction === "left" && tickQuality === "sync") {
-      return "sync";
-    }
+    return expectedKey && tick.keys[expectedKey] ? "sync" : "mouse";
+  }
 
-    if (tick.direction === "right" && tickQuality === "wrong") {
-      return "wrong";
-    }
-
+  if (tick.direction === "neutral") {
     return "key-neutral";
   }
 
-  if (lane === "d") {
-    if (tickQuality === "overlap") {
-      return "overlap";
-    }
+  return lane === getExpectedKey(tick.direction) ? "sync" : "wrong";
+};
 
-    if (tick.direction === "right" && tickQuality === "sync") {
-      return "sync";
-    }
+export const getExpectedKey = (direction: Direction): KeyName | null => {
+  switch (direction) {
+    case "left":
+      return "a";
+    case "right":
+      return "d";
+    case "neutral":
+      return null;
+  }
+};
 
-    if (tick.direction === "left" && tickQuality === "wrong") {
-      return "wrong";
-    }
+export const getWrongKey = (direction: Direction): KeyName | null => {
+  switch (direction) {
+    case "left":
+      return "d";
+    case "right":
+      return "a";
+    case "neutral":
+      return null;
+  }
+};
 
-    return "key-neutral";
+export const startsStrafe = (slots: TimelineSlot[], index: number) => {
+  const currentDirection = slots[index]?.direction ?? "neutral";
+  let previousDirection: Direction = "neutral";
+
+  for (let slotIndex = index - 1; slotIndex >= 0; slotIndex -= 1) {
+    const direction = slots[slotIndex]?.direction ?? "neutral";
+
+    if (direction !== "neutral") {
+      previousDirection = direction;
+      break;
+    }
   }
 
-  return tickQuality;
+  return (
+    currentDirection !== "neutral" &&
+    previousDirection !== "neutral" &&
+    currentDirection !== previousDirection
+  );
 };
 
 const canJoinTicks = (

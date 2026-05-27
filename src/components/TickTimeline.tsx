@@ -1,19 +1,18 @@
 import { memo, useMemo } from "react";
 import { classNames } from "../lib/classNames";
 import { formatSeconds } from "../lib/format";
-import {
-  qualityLabels,
-  RESULT_TICK_COUNT,
-  TICK_MS,
-} from "../trainer/domain/constants";
-import { getTickDetail, getTickQuality } from "../trainer/domain/scoring";
+import { RESULT_TICK_COUNT, TICK_MS } from "../trainer/domain/constants";
 import {
   createTimelineSlots,
+  getExpectedKey,
   getLaneActive,
   getLaneQuality,
   getLaneRunEdges,
+  getWrongKey,
+  startsStrafe,
   tickLanes,
   type TickLane,
+  type TickLaneQuality,
   type TimelineSlot,
 } from "../lib/timeline";
 import type { TickResult } from "../trainer/domain/types";
@@ -29,6 +28,55 @@ type TickCellProps = {
   tick: TimelineSlot;
 };
 
+const laneQualityLabels: Record<TickLaneQuality, string> = {
+  "key-neutral": "Key only",
+  mouse: "Movement without key",
+  neutral: "Idle",
+  sync: "Correct",
+  wrong: "Wrong key",
+};
+
+const getLaneDetail = (
+  lane: TickLane,
+  tick: TickResult,
+  laneQuality: TickLaneQuality,
+) => {
+  if (lane === "mouseLeft" || lane === "mouseRight") {
+    const expectedKey = getExpectedKey(tick.direction)?.toUpperCase();
+    const wrongKey = getWrongKey(tick.direction);
+
+    if (laneQuality === "sync") {
+      return `Synced mouse ${tick.direction} movement`;
+    }
+
+    if (laneQuality === "mouse") {
+      if (wrongKey && tick.keys[wrongKey]) {
+        return `Mouse ${tick.direction} with wrong key pressed`;
+      }
+
+      return tick.keys.a || tick.keys.d
+        ? `Mouse ${tick.direction} without ${expectedKey} held`
+        : `Mouse ${tick.direction} movement without key`;
+    }
+
+    return "Idle";
+  }
+
+  if (laneQuality === "key-neutral") {
+    return "Key pressed without mouse movement";
+  }
+
+  if (laneQuality === "wrong") {
+    return `Expected ${getExpectedKey(tick.direction)?.toUpperCase()} for mouse ${tick.direction}`;
+  }
+
+  if (laneQuality === "sync") {
+    return `Correct ${lane.toUpperCase()} key for mouse ${tick.direction}`;
+  }
+
+  return tick.direction === "neutral" ? "Idle" : "No key input";
+};
+
 const TickCell = memo(function TickCell({
   index,
   lane,
@@ -37,14 +85,14 @@ const TickCell = memo(function TickCell({
 }: TickCellProps) {
   const laneQuality = tick ? getLaneQuality(lane.id, tick) : "neutral";
   const laneActive = tick ? getLaneActive(lane.id, tick) : false;
-  const tickQuality = tick ? getTickQuality(tick.direction, tick.keys) : "neutral";
   const { joinsNext, joinsPrevious } = getLaneRunEdges(lane.id, slots, index);
+  const strafeDivider = startsStrafe(slots, index);
   const tooltip = tick
     ? [
         lane.label,
         `Tick ${tick.tickIndex}`,
-        qualityLabels[tickQuality],
-        getTickDetail(tickQuality, tick.direction),
+        laneQualityLabels[laneQuality],
+        getLaneDetail(lane.id, tick, laneQuality),
         `A:${tick.keys.a ? "on" : "off"} D:${tick.keys.d ? "on" : "off"}`,
         formatSeconds(tick.tickIndex * TICK_MS),
       ].join(" | ")
@@ -58,6 +106,7 @@ const TickCell = memo(function TickCell({
         laneActive && "active",
         joinsPrevious && "join-previous",
         joinsNext && "join-next",
+        strafeDivider && "strafe-divider",
         `tick-${laneQuality}`,
       )}
       role="img"
@@ -110,12 +159,12 @@ export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelinePr
       </div>
 
       <div className="strip-legend" aria-label="Result strip legend">
-        <span><b className="legend-swatch legend-sync" /> synced</span>
-        <span><b className="legend-swatch legend-miss" /> missing key</span>
-        <span><b className="legend-swatch legend-wrong" /> opposite key</span>
-        <span><b className="legend-swatch legend-overlap" /> A+D overlap</span>
+        <span><b className="legend-swatch legend-sync" /> synced movement / correct key</span>
+        <span><b className="legend-swatch legend-mouse" /> movement no key</span>
+        <span><b className="legend-swatch legend-wrong" /> wrong key</span>
         <span><b className="legend-swatch legend-key-neutral" /> key only</span>
         <span><b className="legend-swatch legend-neutral" /> idle</span>
+        <span><b className="legend-divider" /> strafe change</span>
       </div>
     </section>
   );
