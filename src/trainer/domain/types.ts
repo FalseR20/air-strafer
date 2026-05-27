@@ -10,36 +10,22 @@ export type KeyState = {
 export type KeyName = keyof KeyState;
 
 export type TrainingStats = {
-  activeTicks: number;
   syncedTicks: number;
   misses: number;
   wrongWay: number;
   overlaps: number;
-  currentStreak: number;
-  bestStreak: number;
-  activeMs: number;
-  startedAt: number | null;
-  endedAt: number | null;
 };
 
 export type MotionState = {
   direction: Direction;
-  intensity: number;
   quality: TickQuality;
   smoothX: number;
 };
 
 export type TickResult = {
-  id: number;
   tickIndex: number;
   direction: Direction;
-  quality: TickQuality;
-  symbol: string;
-  detail: string;
-  a: boolean;
-  d: boolean;
-  sessionMs: number;
-  smoothX: number;
+  keys: KeyState;
 };
 
 export type TrainerState = {
@@ -49,6 +35,7 @@ export type TrainerState = {
   ticks: TickResult[];
   isTraining: boolean;
   isLocked: boolean;
+  startedAt: number | null;
   clock: number;
 };
 
@@ -57,9 +44,7 @@ export type TrainerSessionState = "Live result" | "Last summary" | "Ready";
 export type TrainerDerivedState = {
   activeTime: string;
   barWidth: number;
-  durationMs: number;
   hasResults: boolean;
-  isActiveMotion: boolean;
   resultLabel: string;
   sessionState: TrainerSessionState;
   sessionTime: string;

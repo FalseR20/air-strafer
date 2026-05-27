@@ -1,7 +1,12 @@
 import { memo, useMemo } from "react";
 import { classNames } from "../lib/classNames";
 import { formatSeconds } from "../lib/format";
-import { qualityLabels, RESULT_TICK_COUNT } from "../trainer/domain/constants";
+import {
+  qualityLabels,
+  RESULT_TICK_COUNT,
+  TICK_MS,
+} from "../trainer/domain/constants";
+import { getTickDetail, getTickQuality } from "../trainer/domain/scoring";
 import {
   createTimelineSlots,
   getLaneActive,
@@ -32,9 +37,17 @@ const TickCell = memo(function TickCell({
 }: TickCellProps) {
   const laneQuality = tick ? getLaneQuality(lane.id, tick) : "neutral";
   const laneActive = tick ? getLaneActive(lane.id, tick) : false;
+  const tickQuality = tick ? getTickQuality(tick.direction, tick.keys) : "neutral";
   const { joinsNext, joinsPrevious } = getLaneRunEdges(lane.id, slots, index);
   const tooltip = tick
-    ? `${lane.label} | Tick ${tick.tickIndex} | ${qualityLabels[tick.quality]} | ${tick.detail} | A:${tick.a ? "on" : "off"} D:${tick.d ? "on" : "off"} | ${formatSeconds(tick.sessionMs)}`
+    ? [
+        lane.label,
+        `Tick ${tick.tickIndex}`,
+        qualityLabels[tickQuality],
+        getTickDetail(tickQuality, tick.direction),
+        `A:${tick.keys.a ? "on" : "off"} D:${tick.keys.d ? "on" : "off"}`,
+        formatSeconds(tick.tickIndex * TICK_MS),
+      ].join(" | ")
     : `${lane.label} | Waiting for tick`;
 
   return (
@@ -81,7 +94,11 @@ export const TickTimeline = memo(function TickTimeline({ ticks }: TickTimelinePr
               {slots.map((tick, index) => (
                 <TickCell
                   index={index}
-                  key={tick ? `${lane.id}-${tick.id}` : `${lane.id}-empty-${index}`}
+                  key={
+                    tick
+                      ? `${lane.id}-${tick.tickIndex}`
+                      : `${lane.id}-empty-${index}`
+                  }
                   lane={lane}
                   slots={slots}
                   tick={tick}

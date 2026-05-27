@@ -38,20 +38,16 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
     })),
 
   finishSession: (now) =>
-    set((state) => ({
-      clock: now,
-      isTraining: false,
-      keys: createKeys(),
-      motion: initialMotion,
-      stats:
-        state.stats.startedAt !== null && state.stats.endedAt === null
-          ? {
-              ...state.stats,
-              currentStreak: 0,
-              endedAt: now,
-            }
-          : state.stats,
-    })),
+    set((state) =>
+      state.isTraining
+        ? {
+            clock: now,
+            isTraining: false,
+            keys: createKeys(),
+            motion: initialMotion,
+          }
+        : state,
+    ),
 
   resetSession: (now) =>
     set({
@@ -80,6 +76,7 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
       ...createTrainerState(now),
       isLocked: locked,
       isTraining: true,
-      stats: createStats(now),
+      startedAt: now,
+      stats: createStats(),
     }),
 }));

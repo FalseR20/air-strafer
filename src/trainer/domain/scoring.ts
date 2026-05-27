@@ -1,4 +1,4 @@
-import { DEADZONE, MOUSE_WINDOW, TICK_MS } from "./constants";
+import { DEADZONE, MOUSE_WINDOW } from "./constants";
 import type {
   Direction,
   KeyName,
@@ -12,7 +12,6 @@ import type {
 export type TickSampleInput = {
   keys: KeyState;
   mouseWindow: number[];
-  now: number;
   rawDelta: number;
   stats: TrainingStats;
   tickIndex: number;
@@ -48,23 +47,30 @@ export const getDirection = (smoothX: number): Direction => {
   return "neutral";
 };
 
+export const getActiveTicks = (stats: TrainingStats) =>
+  stats.syncedTicks + stats.misses + stats.wrongWay + stats.overlaps;
+
 export const getSyncRate = (stats: TrainingStats) => {
-  if (stats.activeTicks === 0) {
+  const activeTicks = getActiveTicks(stats);
+
+  if (activeTicks === 0) {
     return 0;
   }
 
-  return Math.round((stats.syncedTicks / stats.activeTicks) * 100);
+  return Math.round((stats.syncedTicks / activeTicks) * 100);
 };
 
 export const getResultLabel = (stats: TrainingStats) => {
-  if (stats.activeTicks === 0) {
+  const activeTicks = getActiveTicks(stats);
+
+  if (activeTicks === 0) {
     return "No Samples";
   }
 
   const syncRate = getSyncRate(stats);
-  const overlapRate = stats.overlaps / stats.activeTicks;
-  const wrongRate = stats.wrongWay / stats.activeTicks;
-  const missRate = stats.misses / stats.activeTicks;
+  const overlapRate = stats.overlaps / activeTicks;
+  const wrongRate = stats.wrongWay / activeTicks;
+  const missRate = stats.misses / activeTicks;
 
   if (overlapRate > 0.12) {
     return "Too Much Overlap";
@@ -89,21 +95,6 @@ export const getResultLabel = (stats: TrainingStats) => {
   return "Needs Sync";
 };
 
-export const getTickSymbol = (quality: TickQuality) => {
-  switch (quality) {
-    case "sync":
-      return "•";
-    case "miss":
-      return "M";
-    case "wrong":
-      return "X";
-    case "overlap":
-      return "O";
-    case "neutral":
-      return "·";
-  }
-};
-
 export const getTickDetail = (quality: TickQuality, direction: Direction) => {
   switch (quality) {
     case "sync":
@@ -119,7 +110,10 @@ export const getTickDetail = (quality: TickQuality, direction: Direction) => {
   }
 };
 
-const getTickQuality = (direction: Direction, keys: KeyState): TickQuality => {
+export const getTickQuality = (
+  direction: Direction,
+  keys: KeyState,
+): TickQuality => {
   if (direction === "neutral") {
     return "neutral";
   }
@@ -148,7 +142,6 @@ const getTickQuality = (direction: Direction, keys: KeyState): TickQuality => {
 export const sampleTickState = ({
   keys,
   mouseWindow,
-  now,
   rawDelta,
   stats,
   tickIndex,
@@ -159,45 +152,26 @@ export const sampleTickState = ({
     nextMouseWindow.length;
   const direction = getDirection(smoothX);
   const quality = getTickQuality(direction, keys);
-  const activeTick = direction !== "neutral";
   const syncedTick = quality === "sync";
-  const nextStreak = activeTick
-    ? syncedTick
-      ? stats.currentStreak + 1
-      : 0
-    : stats.currentStreak;
 
   const nextStats: TrainingStats = {
     ...stats,
-    activeTicks: stats.activeTicks + (activeTick ? 1 : 0),
     syncedTicks: stats.syncedTicks + (syncedTick ? 1 : 0),
     misses: stats.misses + (quality === "miss" ? 1 : 0),
     wrongWay: stats.wrongWay + (quality === "wrong" ? 1 : 0),
     overlaps: stats.overlaps + (quality === "overlap" ? 1 : 0),
-    currentStreak: nextStreak,
-    bestStreak: Math.max(stats.bestStreak, nextStreak),
-    activeMs: stats.activeMs + (activeTick ? TICK_MS : 0),
   };
 
   const nextTickIndex = tickIndex + 1;
-  const sessionMs = stats.startedAt ? now - stats.startedAt : 0;
   const tick: TickResult = {
-    id: nextTickIndex,
     tickIndex: nextTickIndex,
     direction,
-    quality,
-    symbol: getTickSymbol(quality),
-    detail: getTickDetail(quality, direction),
-    a: keys.a,
-    d: keys.d,
-    sessionMs,
-    smoothX,
+    keys: { ...keys },
   };
 
   return {
     motion: {
       direction,
-      intensity: Math.min(100, Math.abs(smoothX) * 16),
       quality,
       smoothX,
     },

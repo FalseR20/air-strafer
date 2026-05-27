@@ -1,4 +1,5 @@
 import { RESULT_TICK_COUNT } from "../trainer/domain/constants";
+import { getTickQuality } from "../trainer/domain/scoring";
 import type { TickQuality, TickResult } from "../trainer/domain/types";
 
 export type TickLane = "mouseLeft" | "mouseRight" | "a" | "d";
@@ -36,9 +37,9 @@ export const getLaneActive = (lane: TickLane, tick: TickResult) => {
     case "mouseRight":
       return tick.direction === "right";
     case "a":
-      return tick.a;
+      return tick.keys.a;
     case "d":
-      return tick.d;
+      return tick.keys.d;
   }
 };
 
@@ -47,21 +48,22 @@ export const getLaneQuality = (
   tick: TickResult,
 ): TickLaneQuality => {
   const laneActive = getLaneActive(lane, tick);
+  const tickQuality = getTickQuality(tick.direction, tick.keys);
 
   if (!laneActive) {
     return "neutral";
   }
 
   if (lane === "a") {
-    if (tick.quality === "overlap") {
+    if (tickQuality === "overlap") {
       return "overlap";
     }
 
-    if (tick.direction === "left" && tick.quality === "sync") {
+    if (tick.direction === "left" && tickQuality === "sync") {
       return "sync";
     }
 
-    if (tick.direction === "right" && tick.quality === "wrong") {
+    if (tick.direction === "right" && tickQuality === "wrong") {
       return "wrong";
     }
 
@@ -69,22 +71,22 @@ export const getLaneQuality = (
   }
 
   if (lane === "d") {
-    if (tick.quality === "overlap") {
+    if (tickQuality === "overlap") {
       return "overlap";
     }
 
-    if (tick.direction === "right" && tick.quality === "sync") {
+    if (tick.direction === "right" && tickQuality === "sync") {
       return "sync";
     }
 
-    if (tick.direction === "left" && tick.quality === "wrong") {
+    if (tick.direction === "left" && tickQuality === "wrong") {
       return "wrong";
     }
 
     return "key-neutral";
   }
 
-  return tick.quality;
+  return tickQuality;
 };
 
 const canJoinTicks = (

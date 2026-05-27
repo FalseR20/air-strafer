@@ -23,6 +23,7 @@ const selectTrainerState = ({
   isTraining,
   keys,
   motion,
+  startedAt,
   stats,
   ticks,
 }: TrainerState): TrainerState => ({
@@ -31,6 +32,7 @@ const selectTrainerState = ({
   isTraining,
   keys,
   motion,
+  startedAt,
   stats,
   ticks,
 });

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { TICK_MS } from "../domain/constants";
-import { getKeyFromCode, sampleTickState } from "../domain/scoring";
+import {
+  getActiveTicks,
+  getKeyFromCode,
+  sampleTickState,
+} from "../domain/scoring";
 import type { TrainerActions } from "../domain/types";
 import { useTrainerStore } from "../application/trainerStore";
 
@@ -106,7 +110,6 @@ export const useTrainerRuntime = ({
     const nextTick = sampleTickState({
       keys: state.keys,
       mouseWindow: runtime.mouseWindow,
-      now,
       rawDelta,
       stats: state.stats,
       tickIndex: runtime.tickIndex,
@@ -156,7 +159,7 @@ export const useTrainerRuntime = ({
       if (event.code === "KeyR") {
         event.preventDefault();
 
-        if (store.stats.activeTicks > 0) {
+        if (getActiveTicks(store.stats) > 0) {
           resetTraining();
         }
 

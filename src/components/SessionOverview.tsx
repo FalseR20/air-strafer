@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { classNames } from "../lib/classNames";
+import { getActiveTicks } from "../trainer/domain/scoring";
 import type { TrainerDerivedState, TrainerState } from "../trainer/domain/types";
 
 type SessionOverviewProps = {
@@ -12,12 +13,10 @@ export const SessionOverview = memo(function SessionOverview({
   state,
 }: SessionOverviewProps) {
   const statItems = [
-    ["Streak", state.stats.currentStreak],
-    ["Best", state.stats.bestStreak],
     ["Miss", state.stats.misses],
     ["Wrong", state.stats.wrongWay],
     ["Overlap", state.stats.overlaps],
-    ["Ticks", state.stats.activeTicks],
+    ["Ticks", getActiveTicks(state.stats)],
     ["Active", derived.activeTime],
     ["Session", derived.sessionTime],
   ] as const;
