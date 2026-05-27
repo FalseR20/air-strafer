@@ -1,5 +1,5 @@
-import { RESULT_TICK_COUNT } from "./constants";
-import type { TickQuality, TickResult } from "./types";
+import { RESULT_TICK_COUNT } from "../trainer/domain/constants";
+import type { TickQuality, TickResult } from "../trainer/domain/types";
 
 export type TickLane = "mouseLeft" | "mouseRight" | "a" | "d";
 

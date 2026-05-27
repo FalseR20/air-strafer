@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { classNames } from "../lib/classNames";
-import type { KeyName, KeyState, MotionState } from "../lib/types";
+import type { KeyName, KeyState, MotionState } from "../trainer/domain/types";
 
 type KeycapPairProps = {
   keys: KeyState;

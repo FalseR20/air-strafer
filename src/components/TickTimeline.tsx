@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import { classNames } from "../lib/classNames";
-import { qualityLabels, RESULT_TICK_COUNT } from "../lib/constants";
 import { formatSeconds } from "../lib/format";
+import { qualityLabels, RESULT_TICK_COUNT } from "../trainer/domain/constants";
 import {
   createTimelineSlots,
   getLaneActive,
@@ -11,7 +11,7 @@ import {
   type TickLane,
   type TimelineSlot,
 } from "../lib/timeline";
-import type { TickResult } from "../lib/types";
+import type { TickResult } from "../trainer/domain/types";
 
 type TickTimelineProps = {
   ticks: TickResult[];

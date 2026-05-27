@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { classNames } from "../lib/classNames";
-import type { TrainerDerivedState, TrainerState } from "../lib/types";
+import type { TrainerDerivedState, TrainerState } from "../trainer/domain/types";
 
 type SessionOverviewProps = {
   derived: TrainerDerivedState;

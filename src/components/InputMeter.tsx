@@ -1,6 +1,6 @@
 import { memo } from "react";
-import { qualityLabels } from "../lib/constants";
-import type { KeyState, MotionState } from "../lib/types";
+import { qualityLabels } from "../trainer/domain/constants";
+import type { KeyState, MotionState } from "../trainer/domain/types";
 import { KeycapPair } from "./KeycapPair";
 
 type InputMeterProps = {

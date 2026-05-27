@@ -1,4 +1,4 @@
-import type { KeyState, MotionState, TrainingStats } from "./types";
+import type { KeyState, MotionState, TrainerState, TrainingStats } from "./types";
 
 export const createKeys = (): KeyState => ({
   a: false,
@@ -24,3 +24,13 @@ export const initialMotion: MotionState = {
   quality: "neutral",
   smoothX: 0,
 };
+
+export const createTrainerState = (clock = 0): TrainerState => ({
+  keys: createKeys(),
+  stats: createStats(),
+  motion: initialMotion,
+  ticks: [],
+  isTraining: false,
+  isLocked: false,
+  clock,
+});

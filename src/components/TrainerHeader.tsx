@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { TrainerActions } from "../lib/types";
+import type { TrainerActions } from "../trainer/domain/types";
 
 type TrainerHeaderProps = {
   actions: TrainerActions;
