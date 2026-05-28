@@ -37,13 +37,11 @@ body {
   overflow-x: hidden;
   background:
     linear-gradient(135deg, rgba(42, 43, 39, 0.5), rgba(11, 12, 14, 0.96)),
-    repeating-linear-gradient(
-      90deg,
+    repeating-linear-gradient(90deg,
       rgba(255, 255, 255, 0.026) 0,
       rgba(255, 255, 255, 0.026) 1px,
       transparent 1px,
-      transparent 54px
-    ),
+      transparent 54px),
     var(--bg);
 }
 
@@ -200,7 +198,7 @@ h1 {
 
 .stats-panel {
   display: grid;
-  grid-template-columns: minmax(170px, 0.24fr) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, max-content) minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
   min-width: 0;
@@ -245,6 +243,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .status-dot {
@@ -286,6 +285,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
+  justify-content: end;
 }
 
 .stats-grid div {
@@ -751,6 +751,7 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
