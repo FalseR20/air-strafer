@@ -27,6 +27,7 @@ export const TrainerHeader = memo(function TrainerHeader({
         >
           <span>{isJumping ? "Jumping" : "Jump"}</span>
           <kbd>Space</kbd>
+          <kbd>W Release</kbd>
         </button>
         <button type="button" onClick={actions.toggle} disabled={isJumping}>
           <span>{isTraining && !isJumping ? "Stop" : "Practice"}</span>

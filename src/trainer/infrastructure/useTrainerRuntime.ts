@@ -229,6 +229,12 @@ export const useTrainerRuntime = ({
     const onKeyUp = (event: KeyboardEvent) => {
       const store = useTrainerStore.getState();
 
+      if (event.code === "KeyW") {
+        event.preventDefault();
+        startJump();
+        return;
+      }
+
       const key = getKeyFromCode(event.code);
 
       if (!key) {
