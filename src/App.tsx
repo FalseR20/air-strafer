@@ -23,7 +23,6 @@ export function App() {
     >
       <TrainerHeader
         actions={actions}
-        hasResults={derived.hasResults}
         isJumping={state.isJumping}
         isTraining={state.isTraining}
       />

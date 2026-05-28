@@ -7,16 +7,15 @@ import {
   initialMotion,
 } from "../domain/initialState";
 import type { TickSampleResult } from "../domain/scoring";
-import type { KeyName, TrainerState } from "../domain/types";
+import type { KeyName, KeyState, TrainerState } from "../domain/types";
 
 export type TrainerStoreActions = {
   commitTick: (sample: TickSampleResult, now: number) => void;
   finishSession: (now: number) => void;
-  resetSession: (now: number) => void;
   setKeyPressed: (key: KeyName, pressed: boolean) => void;
   setPointerLocked: (locked: boolean) => void;
-  startJump: (now: number, locked: boolean) => void;
-  startPractice: (now: number, locked: boolean) => void;
+  startJump: (now: number, locked: boolean, keys: KeyState) => void;
+  startPractice: (now: number, locked: boolean, keys: KeyState) => void;
 };
 
 export type TrainerStore = TrainerState & TrainerStoreActions;
@@ -51,11 +50,6 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
         : state,
     ),
 
-  resetSession: (now) =>
-    set({
-      ...createTrainerState(now),
-    }),
-
   setKeyPressed: (key, pressed) =>
     set((state) =>
       state.keys[key] === pressed
@@ -73,9 +67,10 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
       isLocked: locked,
     }),
 
-  startJump: (now, locked) =>
+  startJump: (now, locked, keys) =>
     set({
       ...createTrainerState(now),
+      keys: { ...keys },
       isJumping: true,
       isLocked: locked,
       isTraining: true,
@@ -83,9 +78,10 @@ export const useTrainerStore = create<TrainerStore>()((set) => ({
       stats: createStats(),
     }),
 
-  startPractice: (now, locked) =>
+  startPractice: (now, locked, keys) =>
     set({
       ...createTrainerState(now),
+      keys: { ...keys },
       isLocked: locked,
       isTraining: true,
       startedAt: now,

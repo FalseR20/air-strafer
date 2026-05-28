@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { JUMP_TICK_COUNT, TICK_MS } from "../domain/constants";
+import { createKeys } from "../domain/initialState";
 import {
-  getActiveTicks,
   getKeyFromCode,
   sampleTickState,
 } from "../domain/scoring";
@@ -30,6 +30,7 @@ export const useTrainerRuntime = ({
   trainerRef,
 }: UseTrainerRuntimeOptions): TrainerActions => {
   const runtimeRef = useRef<RuntimeBuffers>(createRuntimeBuffers());
+  const movementKeysRef = useRef(createKeys());
   const isJumping = useTrainerStore((state) => state.isJumping);
   const isTraining = useTrainerStore((state) => state.isTraining);
   const startedAt = useTrainerStore((state) => state.startedAt);
@@ -63,7 +64,9 @@ export const useTrainerRuntime = ({
     const locked = document.pointerLockElement === element;
 
     resetRuntimeBuffers();
-    useTrainerStore.getState().startPractice(now, locked);
+    useTrainerStore.getState().startPractice(now, locked, {
+      ...movementKeysRef.current,
+    });
 
     try {
       if (!locked) {
@@ -74,19 +77,6 @@ export const useTrainerRuntime = ({
       finishTraining(false);
     }
   }, [finishTraining, resetRuntimeBuffers, supportsPointerLock, trainerRef]);
-
-  const resetTraining = useCallback(() => {
-    const now = performance.now();
-    resetRuntimeBuffers();
-    useTrainerStore.getState().resetSession(now);
-
-    if (
-      typeof document !== "undefined" &&
-      document.pointerLockElement === trainerRef.current
-    ) {
-      document.exitPointerLock();
-    }
-  }, [resetRuntimeBuffers, trainerRef]);
 
   const stopTraining = useCallback(() => {
     finishTraining(true);
@@ -101,7 +91,7 @@ export const useTrainerRuntime = ({
 
     const state = useTrainerStore.getState();
 
-    if (state.isJumping) {
+    if (state.isTraining) {
       return;
     }
 
@@ -109,7 +99,9 @@ export const useTrainerRuntime = ({
     const locked = document.pointerLockElement === element;
 
     resetRuntimeBuffers();
-    state.startJump(now, locked);
+    state.startJump(now, locked, {
+      ...movementKeysRef.current,
+    });
 
     try {
       if (!locked) {
@@ -214,23 +206,9 @@ export const useTrainerRuntime = ({
         return;
       }
 
-      if (event.code === "KeyR") {
-        event.preventDefault();
-
-        if (getActiveTicks(store.stats) > 0 || store.ticks.length > 0) {
-          resetTraining();
-        }
-
-        return;
-      }
-
       if (event.code === "Escape" && store.isTraining) {
         event.preventDefault();
         finishTraining(true);
-        return;
-      }
-
-      if (!store.isTraining) {
         return;
       }
 
@@ -243,16 +221,13 @@ export const useTrainerRuntime = ({
       event.preventDefault();
 
       if (!event.repeat) {
+        movementKeysRef.current[key] = true;
         store.setKeyPressed(key, true);
       }
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
       const store = useTrainerStore.getState();
-
-      if (!store.isTraining) {
-        return;
-      }
 
       const key = getKeyFromCode(event.code);
 
@@ -261,6 +236,7 @@ export const useTrainerRuntime = ({
       }
 
       event.preventDefault();
+      movementKeysRef.current[key] = false;
       store.setKeyPressed(key, false);
     };
 
@@ -275,7 +251,13 @@ export const useTrainerRuntime = ({
     };
 
     const onBlur = () => {
-      if (useTrainerStore.getState().isTraining) {
+      const store = useTrainerStore.getState();
+
+      movementKeysRef.current = createKeys();
+      store.setKeyPressed("a", false);
+      store.setKeyPressed("d", false);
+
+      if (store.isTraining) {
         finishTraining(true);
       }
     };
@@ -295,7 +277,7 @@ export const useTrainerRuntime = ({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("blur", onBlur);
     };
-  }, [finishTraining, resetTraining, startJump, toggleTraining, trainerRef]);
+  }, [finishTraining, startJump, toggleTraining, trainerRef]);
 
   useEffect(() => {
     if (!isTraining) {
@@ -333,7 +315,6 @@ export const useTrainerRuntime = ({
 
   return {
     jump: startJump,
-    reset: resetTraining,
     start: startPractice,
     stop: stopTraining,
     toggle: toggleTraining,

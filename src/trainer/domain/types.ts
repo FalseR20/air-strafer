@@ -58,7 +58,6 @@ export type TrainerDerivedState = {
 
 export type TrainerActions = {
   jump: () => void;
-  reset: () => void;
   start: () => void;
   stop: () => void;
   toggle: () => void;
